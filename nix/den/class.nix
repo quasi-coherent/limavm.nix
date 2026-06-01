@@ -3,14 +3,14 @@
 let
   inherit (den.lib.policy) resolve include provide;
 
-  guestModule = ../limavm/guest;
+  guestModule = ../limavm;
 
   hostClassToHostModule =
     class:
     if class == "darwin" then
-      ../limavm/host-darwin.nix
+      ../host/darwin.nix
     else if class == "nixos" then
-      ../limavm/host-nixos.nix
+      ../host/nixos.nix
     else
       throw "lima: unsupported host class '${class}' (expected darwin or nixos)";
 
