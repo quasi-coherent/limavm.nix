@@ -73,6 +73,23 @@ in
       vmResolved = den.lib.aspects.resolve vm.class (den.lib.resolveEntity "host" { host = vm; });
       limaResolved = den.lib.aspects.resolve "lima" vm.aspect;
 
+      # Instantiate the guest through vm.instantiate (nixpkgs.lib.nixosSystem
+      # for class=nixos) so the resulting config is evaluated with the proper
+      # NixOS specialArgs — notably `modulesPath`. Reading the raw module set
+      # from inside the host's evalModules would re-evaluate guest modules
+      # without those specialArgs and infinite-recurse on `modulesPath`.
+      vmBuilt = vm.instantiate {
+        inherit (vm) system;
+        modules = [
+          {
+            imports = [
+              host.lima.module
+              vmResolved
+            ];
+          }
+        ];
+      };
+
       guestModuleImport = provide {
         class = vm.class;
         path = [ ];
@@ -91,7 +108,7 @@ in
           vm.name
           "config"
         ];
-        module = _: vmResolved;
+        module = _: vmBuilt.config;
       };
 
       limaProvide = provide {

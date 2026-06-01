@@ -9,7 +9,7 @@
 
   den.aspects.runnable-lima = {
     nixos = {
-      imports = [ inputs.limavm.nixosModules.limavm ];
+      imports = [ inputs.limavm.nixosModules.host ];
       users.users.root.password = "";
       system.stateVersion = "24.11";
     };

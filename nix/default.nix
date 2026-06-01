@@ -3,6 +3,7 @@
   imports = [
     inputs.den.flakeModules.default
     ./flakeModules.nix
+    ./checks.nix
   ];
 
   flake.templates = {
