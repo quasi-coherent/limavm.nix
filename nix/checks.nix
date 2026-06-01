@@ -1,30 +1,19 @@
 {
-  inputs,
   lib,
   config,
   ...
 }:
 {
-  den.hosts.aarch64-linux.lima-check-vm = {
-    intoAttr = [ ];
-  };
-
-  den.hosts.aarch64-linux.lima-check-orchestrator = {
-    lima.guests = [ config.den.hosts.aarch64-linux.lima-check-vm ];
+  den.hosts.aarch64-linux.lima-check-vm.lima.standalone = {
+    enable = true;
+    cpus = 2;
+    memory = "2GiB";
+    vmType = "vz";
   };
 
   den.aspects.lima-check-vm.nixos = {
     users.users.root.password = "";
-    system.stateVersion = "24.11";
-  };
-
-  den.aspects.lima-check-orchestrator.nixos = {
-    system.stateVersion = "24.11";
-    boot.loader.grub.enable = false;
-    fileSystems."/" = {
-      device = "/dev/null";
-      fsType = "ext4";
-    };
+    system.stateVersion = "26.05";
   };
 
   perSystem =
@@ -37,9 +26,8 @@
         "x86_64-linux"
       ])
       {
-        checks.lima-policy-eval = pkgs.writeText "lima-policy-eval" (
-          builtins.toString
-            config.flake.nixosConfigurations.lima-check-orchestrator.config.lima.vms.lima-check-vm.config.networking.hostName
+        checks.lima-runner-eval = pkgs.writeText "lima-runner-eval" (
+          builtins.toString config.flake.packages.aarch64-linux.lima-check-vm.drvPath
         );
       };
 }

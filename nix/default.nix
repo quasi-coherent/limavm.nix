@@ -3,6 +3,7 @@
   imports = [
     inputs.den.flakeModules.default
     ./flakeModules.nix
+    ./den
     ./checks.nix
   ];
 

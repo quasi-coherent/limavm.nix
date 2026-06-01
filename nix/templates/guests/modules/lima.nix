@@ -4,9 +4,7 @@
     den.hosts.aarch64-linux.work-vm
   ];
 
-  den.hosts.aarch64-linux.work-vm = {
-    intoAttr = [ ];
-  };
+  den.hosts.aarch64-linux.work-vm.intoAttr = [ ];
 
   den.aspects.laptop = {
     darwin = {
@@ -19,7 +17,7 @@
       { pkgs, ... }:
       {
         environment.systemPackages = [ pkgs.git ];
-        system.stateVersion = "24.11";
+        system.stateVersion = "26.05";
       };
 
     lima = {

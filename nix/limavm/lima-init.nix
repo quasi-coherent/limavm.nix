@@ -22,7 +22,7 @@ let
   };
 
   # The config for `limactl` that has the name of the image and other stuff.
-  limaYaml = (pkgs.formats.yaml { }).generate "lima.yaml" cfg.lima.settings;
+  limaYaml = (pkgs.formats.yaml { }).generate "lima.yaml" cfg.settings;
 in
 {
   imports = [

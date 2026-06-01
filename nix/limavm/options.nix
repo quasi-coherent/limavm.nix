@@ -57,7 +57,7 @@ in
       description = "RAM (Lima size string, e.g. \"2GiB\").";
     };
 
-    ssh = mkOption {
+    ssh = {
       loadDotSSHPubKeys = mkOption {
         type = types.bool;
         default = true;
@@ -166,7 +166,8 @@ in
   config = {
     assertions =
       let
-        rosettaHasAppleVz = (cfg.lima.rosetta.enable && cfg.vmType == "vm") || !(cfg.lima.rosetta.enable);
+        rosettaHasAppleVz =
+          (cfg.rosetta.enabled && cfg.vmType == "vz") || !cfg.rosetta.enabled;
       in
       [
         {
@@ -176,8 +177,8 @@ in
       ];
 
     # Assemble the `settings` that turn into nixos.yaml for limactl.
-    lima.settings = lib.mkIf cfg.lima.enable {
-      inherit (cfg.lima)
+    lima.settings = lib.mkIf cfg.enable {
+      inherit (cfg)
         vmType
         arch
         cpus
@@ -185,29 +186,29 @@ in
         disk
         ;
 
-      mountType = cfg.lima.mountType;
-      mounts = map (m: { inherit (m) location writable; }) cfg.lima.mounts;
+      mountType = cfg.mountType;
+      mounts = map (m: { inherit (m) location writable; }) cfg.mounts;
 
       portForwards = map (p: {
         inherit (p) guestPort hostPort hostIP;
-      }) cfg.lima.portForwards;
+      }) cfg.portForwards;
 
       provision =
         map (s: {
           mode = "system";
           script = s;
-        }) cfg.lima.provision.system
+        }) cfg.provision.system
         ++ map (s: {
           mode = "user";
           script = s;
-        }) cfg.lima.provision.user;
+        }) cfg.provision.user;
 
-      rosetta = lib.mkIf cfg.lima.rosetta.enable {
+      rosetta = lib.mkIf cfg.rosetta.enabled {
         enabled = true;
         binfmt = true;
       };
 
-      ssh = { inherit (cfg.lima.ssh) loadDotSSHPubKeys localPort; };
+      ssh = { inherit (cfg.ssh) loadDotSSHPubKeys localPort; };
     };
   };
 }

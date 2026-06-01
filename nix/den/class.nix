@@ -44,6 +44,32 @@ let
           lima-host context pipeline.
         '';
       };
+
+      options.lima.standalone = lib.mkOption {
+        type = lib.types.attrs;
+        default = { };
+        description = ''
+          Declare this host as a standalone Lima guest. When `enable` is
+          true, the host:
+            - is not placed under `flake.nixosConfigurations.<name>`
+              (intoAttr defaults to `[ ]`),
+            - imports the limavm guest module into its nixos config,
+            - has the remaining keys here (cpus, memory, vmType, mounts,
+              portForwards, rosetta.enabled, ssh.*, ...) projected into
+              the guest's `lima.*` options.
+
+          Example:
+            den.hosts.aarch64-linux.my-vm.lima.standalone = {
+              enable   = true;
+              cpus     = 2;
+              memory   = "2GiB";
+              vmType   = "vz";
+              rosetta.enabled = true;
+            };
+        '';
+      };
+
+      config.intoAttr = lib.mkIf (host.lima.standalone.enable or false) [ ];
     };
 in
 {
@@ -57,6 +83,20 @@ in
         { host }:
         {
           ${host.class}.imports = [ host.lima.hostModule ];
+        }
+      ))
+    ];
+
+  den.policies.lima-standalone =
+    { host, ... }:
+    lib.optionals (host.lima.standalone.enable or false) [
+      (include (
+        { host }:
+        {
+          ${host.class} = {
+            imports = [ host.lima.module ];
+            lima = builtins.removeAttrs host.lima.standalone [ "enable" ];
+          };
         }
       ))
     ];
@@ -127,7 +167,10 @@ in
       limaProvide
     ];
 
-  den.schema.host.includes = [ den.policies.host-to-lima-host ];
+  den.schema.host.includes = [
+    den.policies.host-to-lima-host
+    den.policies.lima-standalone
+  ];
   den.schema.lima-host.includes = [ den.policies.lima-host-to-lima-guest ];
   den.schema.lima-guest.includes = [ den.policies.lima-guest-resolve-vm ];
   den.schema.host.imports = [ extendHostSchema ];
