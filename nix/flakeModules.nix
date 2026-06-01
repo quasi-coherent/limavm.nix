@@ -1,17 +1,14 @@
 let
-  limavm = ./limavm;
-  default = limavm;
+  lima = ./limavm;
+  default = lima;
 in
 {
   flake = {
-    flakeModules.limaLib = ./den;
-    nixosModules = {
-      inherit limavm default;
-      host = ./host/nixos.nix;
+    flakeModules = {
+      inherit lima default;
+      limaLib = ./den;
     };
-    darwinModules = {
-      inherit limavm default;
-      host = ./host/darwin.nix;
-    };
+    nixosModules.host = ./host/nixos.nix;
+    darwinModules.host = ./host/darwin.nix;
   };
 }
