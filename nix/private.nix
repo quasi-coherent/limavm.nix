@@ -3,16 +3,20 @@
   lib,
   config,
   self,
+  den,
   ...
 }:
 {
   # With den.
-  den.hosts.aarch64-linux.lima-check-vm.lima.standalone = {
-    enable = true;
-    cpus = 2;
-    memory = "2GiB";
-    vmType = "vz";
-  };
+  den.hosts.aarch64-linux.lima-check-vm = { };
+
+  den.aspects.lima-check-vm.includes = [
+    (den.batteries.toLima {
+      cpus = 2;
+      memory = "2GiB";
+      vmType = "vz";
+    })
+  ];
 
   den.aspects.lima-check-vm.nixos = {
     users.users.root.password = "";

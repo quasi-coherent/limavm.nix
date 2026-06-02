@@ -1,22 +1,19 @@
 {
-  description = "nix-darwin host running a nixos guest";
+  description = "nixos host running a nixos guest";
 
   inputs.nixpkgs.url = "github:nixos/nixpkgs/nixpkgs-unstable";
-  inputs.darwin.url = "github:nix-community/nix-darwin";
-  inputs.darwin.inputs.nixpkgs.follows = "nixpkgs";
   inputs.limavm.url = "github:quasi-coherent/limavm.nix";
   inputs.limavm.inputs.nixpkgs.follows = "nixpkgs";
 
   outputs =
     {
       nixpkgs,
-      darwin,
       limavm,
       ...
     }:
     let
-      hostSystem = "aarch64-darwin";
-      guestSystem = "aarch64-linux";
+      hostSystem = "x86_64-linux";
+      guestSystem = "x86_64-linux";
 
       workVm = nixpkgs.lib.nixosSystem {
         system = guestSystem;
@@ -27,14 +24,7 @@
               enable = true;
               cpus = 4;
               memory = "4GiB";
-              vmType = "vz";
-              rosetta.enabled = true;
-              mounts = [
-                {
-                  location = "/Users";
-                  writable = false;
-                }
-              ];
+              vmType = "qemu";
             };
 
             users.users.root.password = "";
@@ -46,12 +36,18 @@
     {
       nixosConfigurations.work-vm = workVm;
 
-      darwinConfigurations.laptop = darwin.lib.darwinSystem {
+      nixosConfigurations.server = nixpkgs.lib.nixosSystem {
         system = hostSystem;
         modules = [
-          limavm.darwinModules.lima
+          limavm.nixosModules.host
           {
-            system.stateVersion = 5;
+            system.stateVersion = "26.05";
+            boot.loader.grub.device = "/dev/sda";
+            fileSystems."/" = {
+              device = "/dev/sda1";
+              fsType = "ext4";
+            };
+
             lima.vms.work-vm = {
               yaml = workVm.config.system.build.limaYaml;
               autoStart = true;

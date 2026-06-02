@@ -24,40 +24,39 @@
       default = self.nixosModules.lima;
       lima = {
         imports = [
-          ./options.nix
-          ./lima-init.nix
+          ./lima.nix
         ];
       };
-      lima-host = {
+      host = {
         imports = [
-          ./options-host.nix
+          ./host.nix
           self.lib.nixosHost
         ];
       };
     };
 
     darwinModules = {
-      default = self.darwinModules.lima;
-      lima = {
+      default = self.darwinModules.host;
+      host = {
         imports = [
-          ./options-host.nix
+          ./host.nix
           self.lib.darwinHost
         ];
       };
     };
 
     templates = {
-      guest = {
-        path = ../templates/guest;
-        description = "Single Lima guest as a runnable flake package (`nix run`).";
+      flake-module = {
+        path = ../templates/flake-module;
+        description = "Dendritic flake: den hosts/aspects with `toLima` + `limaGuests` batteries.";
       };
-      aspects = {
-        path = ../templates/aspects;
-        description = "Lima guest composed from multiple den aspects.";
+      nixos-host = {
+        path = ../templates/nixos-host;
+        description = "Pure NixOS host + nixosSystem guest, no den, wired via nixosModules.host.";
       };
       darwin-host = {
         path = ../templates/darwin-host;
-        description = "Pure nix-darwin host + nixosSystem guest, no den, wired via darwinModules.lima.";
+        description = "Pure nix-darwin host + nixosSystem guest, no den, wired via darwinModules.host.";
       };
     };
   };

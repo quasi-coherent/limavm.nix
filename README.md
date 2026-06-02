@@ -2,6 +2,8 @@
 
 A flake to build and run NixOS as a Lima-managed VM on MacOS or Linux hosts.
 
+See the [templates](./nix/templates) directory for examples.
+
 ## Usage
 
 Add to your flake.nix:
@@ -15,70 +17,61 @@ inputs.limavm-nix.inputs.nixpkgs = "nixpkgs";
 
 * **Darwin host**: `darwinModules` adds options to run `nixosSystem`s as launchd
   agents.  See the example [template](./templates/darwin-host).
-* **NixOS host**: Pretty much the same example except you would import the module
-  `nixosModules` instead, and the VMs will be systemd services instead.
+* **NixOS host**: Pretty much the same example except you import `nixosModules`
+  and get systemd services instead.
 
 ### `den`
 
-This also sets up some wiring to use with the [den] framework:
+This also adds an extension of the [den] framework by defining a class that
+represents a Lima VM.  This gets wired to den's resolution pipeline in the
+above two ways, via a systemd service or launchd agent.  The `limaGuests`
+battery is sugar for adding one or more VMs:
 
 ```nix
-# base.nix -- default OS settings aspect
-den.aspects.base-nixos = {
-  nixos =
-  { pkgs, ... }:
-  {
-    environment.systemPackages = with pkgs; [
-      cowsay
-      emacs30
-      fd
-      git
-      ripgrep
-    ];
-  };
-};
+{ den, ... }:
 
-# host.nix
-{ inputs, ... }:
-{
-  imports = [ inputs.limavm-nix.flakeModules.den ];
-
-  den.aspects.my-nixos.includes = [
-    den.aspects.base-nixos
-    (den.batteries.toLimaHost {
-      cpus = 4;
-      memory = "4GiB";
-      vmType = "qemu";
-      mounts = [
-        {
-          location = "/Users/darwin-user/.config/sops/age/keys.txt";
-          writable = false;
-        }
-      ];
-    })
-  ];
-
-  den.hosts.aarch64-linux.my-nixos = { };
-}
+den.aspects.my-darwin-host.includes = [
+  (den.batteries.limaGuests [
+    den.aspects.my-nixos-vm1
+    den.aspects.my-nixos-vm2
+    den.aspects.my-nixos-vm3
+  ])
+];
 ```
 
-The battery `toLimaHost` has the effect of emitting a flake package output
-`my-nixos`.  This package will build a Lima image and config from the provided
-options and exposes a `limactl` wrapper that is pre-configured to boot a VM
-from the constructed image and settings.
+Additionally, you can write a more intrinsic definition and get a flake package
+output from it:
 
-Packages are emitted that target both `aarch64-darwin` and `aarch64-linux` in
-this example, which is assuming that the host is `aarch64-darwin`.  In other
-words, the guest VM is set on _its own_ host system `aarch64-linux`, but the
-command
+```nix
+den.aspects.vm.includes = [
+  den.aspects.editor
+  den.aspects.secrets
+  den.aspects.cli-tools
+  (den.batteries.toLima {
+    cpus = 4;
+    memory = "8GiB";
+    mounts = [
+      {
+        location = "~/.config/sops/age/keys.txt";
+        writeable = false;
+      }
+    ];
+    vmType = "vz";
+  })
+];
+```
+
+Then
 
 ```console
-> $ nix run .#packages.aarch64-darwin.my-nixos
+> $ nix run .#packages.aarch64-darwin.*
 ```
 
-is called from the main Darwin host.
+starts the VM as `limactl start --name [HOST] [YAML]`.
 
-See a simple [template][eg1] or a different simple [template][eg2].
+### TODO
+
+Add other `limactl` pre-configured commands to the wrapper.
 
 [den]: https://den.denful.dev
 [eg1]: ./templates/guests

@@ -1,5 +1,6 @@
 { ... }:
 {
+  # Shared base config every guest gets.
   den.aspects.base.nixos = {
     users.users.root.password = "";
     users.users.dev = {
@@ -14,10 +15,11 @@
     { pkgs, ... }:
     {
       environment.systemPackages = with pkgs; [
-        git
-        ripgrep
+        emacs30
         fd
         jq
+        git
+        ripgrep
       ];
     };
 
