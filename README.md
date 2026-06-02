@@ -13,9 +13,9 @@ inputs.limavm-nix.inputs.nixpkgs = "nixpkgs";
 
 `limavm-nix` exposes the conventional flake modules:
 
-* *Darwin host*: `darwinModules` adds options to run `nixosSystem`s as launchd
+* **Darwin host**: `darwinModules` adds options to run `nixosSystem`s as launchd
   agents.  See the example [template](./templates/darwin-host).
-* *NixOS host*: Pretty much the same example except you would import the module
+* **NixOS host**: Pretty much the same example except you would import the module
   `nixosModules` instead, and the VMs will be systemd services instead.
 
 ### `den`
@@ -78,4 +78,8 @@ command
 
 is called from the main Darwin host.
 
+See a simple [template][eg1] or a different simple [template][eg2].
+
 [den]: https://den.denful.dev
+[eg1]: ./templates/guests
+[eg2]: ./templates/aspects
