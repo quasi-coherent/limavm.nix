@@ -1,20 +1,26 @@
 { inputs, ... }:
 {
   imports = [
-    inputs.den.flakeModules.default
-    ./flakeModules.nix
-    ./den
-    ./checks.nix
+    inputs.flake-parts.flakeModules.partitions
+    ./modules.nix
   ];
 
-  flake.templates = {
-    standalone = {
-      path = ./templates/standalone;
-      description = "Intrinsic Lima VM definition in a package";
-    };
-    guests = {
-      path = ./templates/guests;
-      description = "Lima VMs defined as part of a nix-darwin";
-    };
+  partitionedAttrs.checks = "dev";
+  partitionedAttrs.devShells = "dev";
+  partitionedAttrs.formatter = "dev";
+
+  partitions.dev = {
+    extraInputsFlake = ../private;
+    module =
+      { inputs, ... }:
+      {
+        imports = [
+          inputs.den.flakeModules.default
+          inputs.treefmt-nix.flakeModule
+          ./den
+          ./lib/limactl.nix
+          ./private.nix
+        ];
+      };
   };
 }

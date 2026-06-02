@@ -1,14 +1,10 @@
 {
-  description = "Extrinsic VM, ran as a launchd service on darwin";
-
+  description = "Lima guest composed from multiple den aspects";
   inputs.den.url = "github:denful/den";
   inputs.import-tree.url = "github:vic/import-tree";
   inputs.nixpkgs.url = "github:nixos/nixpkgs/nixpkgs-unstable";
-  inputs.darwin.url = "github:nix-community/nix-darwin";
-  inputs.darwin.inputs.nixpkgs.follows = "nixpkgs";
-  inputs.limavm-nix.url = "github:quasi-coherent/limavm.nix";
-  inputs.limavm-nix.inputs.nixpkgs.follows = "nixpkgs";
-
+  inputs.limavm.url = "github:quasi-coherent/limavm.nix";
+  inputs.limavm.inputs.nixpkgs.follows = "nixpkgs";
   outputs =
     inputs:
     (inputs.nixpkgs.lib.evalModules {

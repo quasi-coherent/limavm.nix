@@ -1,8 +1,8 @@
 {
   config,
   lib,
-  pkgs,
   modulesPath,
+  pkgs,
   ...
 }:
 let
@@ -21,26 +21,63 @@ let
     touchEFIVars = false;
   };
 
-  # The config for `limactl` that has the name of the image and other stuff.
-  limaYaml = (pkgs.formats.yaml { }).generate "lima.yaml" cfg.settings;
-in
-{
-  imports = [
-    "${modulesPath}/profiles/qemu-guest.nix"
-  ];
+  # Serialized as yaml for the `nixos.yaml` that `limactl` needs.
+  limaSettings = {
+    inherit (cfg)
+      vmType
+      arch
+      cpus
+      memory
+      disk
+      ;
 
-  # Adapted from:
-  # https://github.com/lima-vm/alpine-lima/blob/ec4a135abbc8abecd21c2768e2bd7c260e11c6e9/lima-init.sh
-  # https://github.com/nixos-lima/nixos-lima/blob/67bf50228688d79c98f6c0bc3a743dff2ce010bd/lima-init.nix
-  config = lib.mkIf cfg.enable {
-    system.build = { inherit limaImage limaYaml; };
-
-    lima.settings.images = [
+    images = [
       {
         location = "${limaImage}/nixos.qcow2";
         inherit (cfg) arch;
       }
     ];
+
+    mountType = cfg.mountType;
+    mounts = map (m: { inherit (m) location writable; }) cfg.mounts;
+
+    portForwards = map (p: {
+      inherit (p) guestPort hostPort hostIP;
+    }) cfg.portForwards;
+
+    provision =
+      map (s: {
+        mode = "system";
+        script = s;
+      }) cfg.provision.system
+      ++ map (s: {
+        mode = "user";
+        script = s;
+      }) cfg.provision.user;
+
+    rosetta = lib.mkIf cfg.rosetta.enabled {
+      enabled = true;
+      binfmt = true;
+    };
+
+    ssh = { inherit (cfg.ssh) loadDotSSHPubKeys localPort; };
+  };
+
+  # The VM configuration for limactl.
+  limaYaml = (pkgs.formats.yaml { }).generate "lima.yaml" limaSettings;
+in
+{
+  # Don't know what this does but it fails without it, and that's annoying
+  # because of `modulesPath`.
+  imports = [
+    "${modulesPath}/profiles/qemu-guest.nix"
+  ];
+
+  # Mostly adapted from:
+  # https://github.com/lima-vm/alpine-lima/blob/ec4a135abbc8abecd21c2768e2bd7c260e11c6e9/lima-init.sh
+  # https://github.com/nixos-lima/nixos-lima/blob/67bf50228688d79c98f6c0bc3a743dff2ce010bd/lima-init.nix
+  config = lib.mkIf cfg.enable {
+    system.build = { inherit limaImage limaYaml; };
 
     nix.settings = {
       trusted-users = [ "@wheel" ];

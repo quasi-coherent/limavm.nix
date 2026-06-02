@@ -15,6 +15,12 @@ in
       description = "Configure this NixOS system as a Lima guest.";
     };
 
+    package = mkOption {
+      type = types.package;
+      default = pkgs.lima;
+      defaultText = literalExpression "pkgs.lima";
+    };
+
     settings = mkOption {
       type = (pkgs.formats.yaml { }).type;
       default = { };
@@ -166,8 +172,7 @@ in
   config = {
     assertions =
       let
-        rosettaHasAppleVz =
-          (cfg.rosetta.enabled && cfg.vmType == "vz") || !cfg.rosetta.enabled;
+        rosettaHasAppleVz = (cfg.rosetta.enabled && cfg.vmType == "vz") || !cfg.rosetta.enabled;
       in
       [
         {
@@ -175,40 +180,5 @@ in
           message = "`lima.rosetta.enabled = true` requires `lima.vmType` = \"vz\".";
         }
       ];
-
-    # Assemble the `settings` that turn into nixos.yaml for limactl.
-    lima.settings = lib.mkIf cfg.enable {
-      inherit (cfg)
-        vmType
-        arch
-        cpus
-        memory
-        disk
-        ;
-
-      mountType = cfg.mountType;
-      mounts = map (m: { inherit (m) location writable; }) cfg.mounts;
-
-      portForwards = map (p: {
-        inherit (p) guestPort hostPort hostIP;
-      }) cfg.portForwards;
-
-      provision =
-        map (s: {
-          mode = "system";
-          script = s;
-        }) cfg.provision.system
-        ++ map (s: {
-          mode = "user";
-          script = s;
-        }) cfg.provision.user;
-
-      rosetta = lib.mkIf cfg.rosetta.enabled {
-        enabled = true;
-        binfmt = true;
-      };
-
-      ssh = { inherit (cfg.ssh) loadDotSSHPubKeys localPort; };
-    };
   };
 }

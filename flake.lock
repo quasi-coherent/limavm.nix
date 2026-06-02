@@ -1,20 +1,5 @@
 {
   "nodes": {
-    "den": {
-      "locked": {
-        "lastModified": 1780270913,
-        "narHash": "sha256-7jmaw+1HI0mfZvxNj7qo8GL4wAjo9fCBkPDqDfzzt3E=",
-        "owner": "denful",
-        "repo": "den",
-        "rev": "294d58404758df423e0332646a241b98ed087d78",
-        "type": "github"
-      },
-      "original": {
-        "owner": "denful",
-        "repo": "den",
-        "type": "github"
-      }
-    },
     "flake-parts": {
       "inputs": {
         "nixpkgs-lib": [
@@ -50,7 +35,6 @@
     },
     "root": {
       "inputs": {
-        "den": "den",
         "flake-parts": "flake-parts",
         "nixpkgs": "nixpkgs",
         "nixpkgs-lib": [
