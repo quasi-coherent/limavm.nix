@@ -90,8 +90,16 @@ in
     # Lima needs these, pretty sure.
     services.openssh.enable = true;
     security.sudo.wheelNeedsPassword = false;
-    boot.loader.systemd-boot.enable = true;
-    boot.loader.efi.canTouchEfiVariables = false;
+
+    boot = {
+      kernelParams = [ "console=tty0" ];
+      loader.grub = {
+        device = "nodev";
+        efiSupport = true;
+        efiInstallAsRemovable = true;
+      };
+      loader.systemd-boot.enable = true;
+    };
 
     environment.systemPackages = with pkgs; [
       sshfs
