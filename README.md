@@ -12,14 +12,15 @@ inputs.limavm.url = "github:quasi-coherent/limavm.nix";
 inputs.limavm.inputs.nixpkgs.follows = "nixpkgs";
 ```
 
-The flake exposes conventional flake modules and the `limavm-nix` options tree:
-tree, `services.limavm-nix`, holding a `vms.<name>` attrset:
+The flake exposes the conventional modules:
 
 | Output                  | Runs guests via       |
 | ----------------------- | --------------------- |
 | `darwinModules.lima`    | `launchd.user.agents` |
 | `nixosModules.lima`     | `systemd.services`    |
 | `homeModules.lima`      | One or the other |
+
+It also exposes a less conventional one, `limavm.flakeModules.den`; see [below][#den-integration].
 
 ### Declaring a VM
 
