@@ -11,35 +11,11 @@
       limavm,
       ...
     }:
-    let
-      hostSystem = "x86_64-linux";
-      guestSystem = "x86_64-linux";
-
-      workVm = nixpkgs.lib.nixosSystem {
-        system = guestSystem;
+    {
+      nixosConfigurations.server = nixpkgs.lib.nixosSystem {
+        system = "x86_64-linux";
         modules = [
           limavm.nixosModules.lima
-          {
-            lima = {
-              enable = true;
-              cpus = 4;
-              memory = "4GiB";
-              vmType = "qemu";
-            };
-
-            users.users.root.password = "";
-            system.stateVersion = "26.05";
-          }
-        ];
-      };
-    in
-    {
-      nixosConfigurations.work-vm = workVm;
-
-      nixosConfigurations.server = nixpkgs.lib.nixosSystem {
-        system = hostSystem;
-        modules = [
-          limavm.nixosModules.host
           {
             system.stateVersion = "26.05";
             boot.loader.grub.device = "/dev/sda";
@@ -48,9 +24,26 @@
               fsType = "ext4";
             };
 
-            lima.vms.work-vm = {
-              yaml = workVm.config.system.build.limaYaml;
-              autoStart = true;
+            services.limavm-nix = {
+              enable = true;
+              vms.work-vm = {
+                autoStart = true;
+                guest = {
+                  system = "x86_64-linux";
+                  modules = [
+                    {
+                      lima = {
+                        enable = true;
+                        cpus = 4;
+                        memory = "4GiB";
+                        vmType = "qemu";
+                      };
+                      users.users.root.password = "";
+                      system.stateVersion = "26.05";
+                    }
+                  ];
+                };
+              };
             };
           }
         ];

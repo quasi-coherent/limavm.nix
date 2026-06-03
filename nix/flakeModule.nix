@@ -1,4 +1,4 @@
-{ self, ... }:
+{ inputs, self, ... }:
 {
   systems = [
     "aarch64-darwin"
@@ -10,12 +10,31 @@
   flake = {
     lib = import ./lib;
 
+    darwinModules = {
+      default = self.darwinModules.lima;
+      lima = {
+        imports = [
+          ./modules/darwin.nix
+        ];
+      };
+    };
+
     flakeModules = {
       default = self.flakeModules.den;
       den = {
+        inherit inputs;
         imports = [
           ./den
-          self.lib.den.mkLimactl
+          ./modules/den.nix
+        ];
+      };
+    };
+
+    homeModules = {
+      default = self.homeModules.lima;
+      lima = {
+        imports = [
+          ./modules/home.nix
         ];
       };
     };
@@ -24,23 +43,7 @@
       default = self.nixosModules.lima;
       lima = {
         imports = [
-          ./lima.nix
-        ];
-      };
-      host = {
-        imports = [
-          ./host.nix
-          self.lib.nixosHost
-        ];
-      };
-    };
-
-    darwinModules = {
-      default = self.darwinModules.host;
-      host = {
-        imports = [
-          ./host.nix
-          self.lib.darwinHost
+          ./modules/nixos.nix
         ];
       };
     };

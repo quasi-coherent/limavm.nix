@@ -1,78 +1,112 @@
 # limavm.nix
 
-A flake to build and run NixOS as a Lima-managed VM on MacOS or Linux hosts.
+A flake for running NixOS as a [Lima](https://lima-vm.io/)-managed VM on macOS
+or Linux hosts.
 
-See the [templates](./nix/templates) directory for examples.
+See the [templates](./templates) directory for examples you can run.
 
 ## Usage
 
-Add to your flake.nix:
-
 ```nix
-inputs.limavm-nix.url = "github:quasi-coherent/limavm.nix";
-inputs.limavm-nix.inputs.nixpkgs = "nixpkgs";
+inputs.limavm.url = "github:quasi-coherent/limavm.nix";
+inputs.limavm.inputs.nixpkgs.follows = "nixpkgs";
 ```
 
-`limavm-nix` exposes the conventional flake modules:
+The flake exposes conventional flake modules and the `limavm-nix` options tree:
+tree, `services.limavm-nix`, holding a `vms.<name>` attrset:
 
-* **Darwin host**: `darwinModules` adds options to run `nixosSystem`s as launchd
-  agents.  See the example [template](./templates/darwin-host).
-* **NixOS host**: Pretty much the same example except you import `nixosModules`
-  and get systemd services instead.
+| Output                  | Runs guests via       |
+| ----------------------- | --------------------- |
+| `darwinModules.lima`    | `launchd.user.agents` |
+| `nixosModules.lima`     | `systemd.services`    |
+| `homeModules.lima`      | One or the other |
 
-### `den`
+### Declaring a VM
 
-This also adds an extension of the [den] framework by defining a class that
-represents a Lima VM.  This gets wired to den's resolution pipeline in the
-above two ways, via a systemd service or launchd agent.  The `limaGuests`
-battery is sugar for adding one or more VMs:
+You can declare a `vms.<name>` entry from a pre-built `lima.yaml`:
 
 ```nix
-{ den, ... }:
+services.limavm-nix.vms.work.yaml = ./lima.yaml; # or some store path
+```
 
+The NixOS guest can be defined inline too:
+
+```nix
+# darwin host running a NixOS guest
+darwinConfigurations.laptop = darwin.lib.darwinSystem {
+  system = "aarch64-darwin";
+  modules = [
+    limavm.darwinModules.lima
+    {
+      services.limavm-nix = {
+        enable = true;
+        vms.work = {
+          autoStart = true;
+          guest = {
+            system = "aarch64-linux";
+            modules = [{
+              lima = {
+                enable = true;
+                cpus = 4;
+                memory = "4GiB";
+                vmType = "vz";
+                rosetta.enabled = true;
+                mounts = [ { location = "/Users"; writable = false; } ];
+              };
+              users.users.root.password = "";
+              system.stateVersion = "26.05";
+            }];
+          };
+        };
+      };
+    }
+  ];
+};
+```
+
+### `mkGuestYaml`
+
+Ad-hoc VMs can use `mkGuestYaml`:
+
+```nix
+yaml = limavm.lib.mkGuestYaml {
+  inherit pkgs;
+  system = "aarch64-linux";
+  modules = [ { lima.enable = true; system.stateVersion = "26.05"; } ];
+};
+```
+
+## `den` integration
+
+If you use the [den](https://den.denful.dev) framework, `lima` is a den class extending
+`host` that two batteries are exposed for:
+
+```nix
+# Run a list of den hosts as Lima guests on the including host.
 den.aspects.my-darwin-host.includes = [
   (den.batteries.limaGuests [
-    den.aspects.my-nixos-vm1
-    den.aspects.my-nixos-vm2
-    den.aspects.my-nixos-vm3
+    den.hosts.my-nixos-vm1
+    den.hosts.my-nixos-vm2
   ])
 ];
-```
 
-Additionally, you can write a more intrinsic definition and get a flake package
-output from it:
-
-```nix
+# Expose the including host as a runnable Lima guest at
+# `flake.packages.<sys>.<host>`.
 den.aspects.vm.includes = [
   den.aspects.editor
-  den.aspects.secrets
   den.aspects.cli-tools
   (den.batteries.toLima {
     cpus = 4;
     memory = "8GiB";
-    mounts = [
-      {
-        location = "~/.config/sops/age/keys.txt";
-        writeable = false;
-      }
-    ];
     vmType = "vz";
   })
 ];
 ```
 
-Then
+Then:
 
 ```console
-> $ nix run .#packages.aarch64-darwin.*
+$ nix run .#packages.aarch64-darwin.vm
 ```
 
-starts the VM as `limactl start --name [HOST] [YAML]`.
-
-### TODO
-
-Add other `limactl` pre-configured commands to the wrapper.
-
-[den]: https://den.denful.dev
-[eg1]: ./templates/guests
-[eg2]: ./templates/aspects
+starts the VM via `limactl start --name vm <generated lima.yaml>`.

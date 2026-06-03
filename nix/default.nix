@@ -2,7 +2,7 @@
 {
   imports = [
     inputs.flake-parts.flakeModules.partitions
-    ./modules.nix
+    ./flakeModule.nix
   ];
 
   partitionedAttrs.checks = "dev";
@@ -18,7 +18,7 @@
           inputs.den.flakeModules.default
           inputs.treefmt-nix.flakeModule
           ./den
-          ./lib/limactl.nix
+          ./modules/den.nix
           ./private.nix
         ];
       };

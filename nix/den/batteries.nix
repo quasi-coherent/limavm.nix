@@ -18,24 +18,27 @@
 
         ${host.class} = {
           imports = [
-            ../host.nix
-            ../lib/${host.class}-host.nix
+            ../modules/${host.class}.nix
           ];
-          lima.vms = lib.listToAttrs (
-            map (
-              g:
-              lib.nameValuePair g.name {
-                yaml =
-                  (g.instantiate {
-                    inherit (g) system;
-                    modules = [
-                      ../lima.nix
-                      (den.lib.aspects.resolve "nixos" (den.lib.resolveEntity "host" { host = g; }))
-                    ];
-                  }).config.system.build.limaYaml;
-              }
-            ) guests
-          );
+          services.limavm-nix = {
+            enable = true;
+            vms = lib.listToAttrs (
+              map (
+                g:
+                lib.nameValuePair g.name {
+                  yaml =
+                    (g.instantiate {
+                      inherit (g) system;
+                      modules = [
+                        ../options.nix
+                        ../lima.nix
+                        (den.lib.aspects.resolve "nixos" (den.lib.resolveEntity "host" { host = g; }))
+                      ];
+                    }).config.system.build.limaYaml;
+                }
+              ) guests
+            );
+          };
         };
       };
   };
@@ -50,7 +53,10 @@
       {
         name = "toLima";
         ${host.class} = {
-          imports = [ ../lima.nix ];
+          imports = [
+            ../options.nix
+            ../lima.nix
+          ];
           lima = settings // {
             runner = true;
           };

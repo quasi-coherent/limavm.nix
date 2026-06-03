@@ -1,7 +1,6 @@
 {
   inputs,
   lib,
-  config,
   self,
   den,
   ...
@@ -66,23 +65,45 @@
           ];
         };
 
-      # It's important to not write a check that needs to create the derivation
-      # path `.drvPath` for anything that references the image `limaImage`.
-      # That's because it'll try to download all of nixpkgs, which is crazy.
       checks = {
-        lima-runner-eval = pkgs.writeText "lima-runner-eval" (
-          if config.flake.packages.aarch64-linux ? lima-check-vm then
-            "ok"
-          else
-            throw "mkLimactl did not emit flake.packages.aarch64-linux.lima-check-vm"
-        );
+        # It's important to not write a check that needs to create the derivation
+        # path `.drvPath` for anything that references the image `limaImage`.
+        # That's because it'll try to download all of nixpkgs, which is crazy.
+        #
+        # This creates lima.yaml without the boot image hash.
+        lima-runner-eval =
+          let
+            nixosCfg = inputs.nixpkgs.lib.nixosSystem {
+              system = "aarch64-linux";
+              modules = [
+                ./options.nix
+                ./lima.nix
+                {
+                  lima = {
+                    enable = true;
+                    cpus = 2;
+                    memory = "2GiB";
+                    vmType = "vz";
+                    runner = true;
+                  };
+                  users.users.root.password = "";
+                  system.stateVersion = "26.05";
+                }
+              ];
+            };
+          in
+          self.lib.evalLimaYaml {
+            inherit pkgs;
+            config = nixosCfg.config;
+          };
 
         lima-plain-eval =
           let
             nixosCfg = inputs.nixpkgs.lib.nixosSystem {
               system = "aarch64-linux";
               modules = [
-                self.nixosModules.lima
+                ./options.nix
+                ./lima.nix
                 {
                   lima.enable = true;
                   users.users.root.password = "";
@@ -91,9 +112,10 @@
               ];
             };
           in
-          pkgs.writeText "lima-plain-eval" (
-            if nixosCfg.config.lima.enable then "ok" else throw "nixosModules.lima did not activate lima.enable"
-          );
+          self.lib.evalLimaYaml {
+            inherit pkgs;
+            config = nixosCfg.config;
+          };
       };
     };
 }

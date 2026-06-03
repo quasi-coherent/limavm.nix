@@ -9,52 +9,44 @@
 
   outputs =
     {
-      nixpkgs,
       darwin,
       limavm,
       ...
     }:
-    let
-      hostSystem = "aarch64-darwin";
-      guestSystem = "aarch64-linux";
-
-      workVm = nixpkgs.lib.nixosSystem {
-        system = guestSystem;
-        modules = [
-          limavm.nixosModules.lima
-          {
-            lima = {
-              enable = true;
-              cpus = 4;
-              memory = "4GiB";
-              vmType = "vz";
-              rosetta.enabled = true;
-              mounts = [
-                {
-                  location = "/Users";
-                  writable = false;
-                }
-              ];
-            };
-
-            users.users.root.password = "";
-            system.stateVersion = "26.05";
-          }
-        ];
-      };
-    in
     {
-      nixosConfigurations.work-vm = workVm;
-
       darwinConfigurations.laptop = darwin.lib.darwinSystem {
-        system = hostSystem;
+        system = "aarch64-darwin";
         modules = [
           limavm.darwinModules.lima
           {
             system.stateVersion = 5;
-            lima.vms.work-vm = {
-              yaml = workVm.config.system.build.limaYaml;
-              autoStart = true;
+            services.limavm-nix = {
+              enable = true;
+              vms.work-vm = {
+                autoStart = true;
+                guest = {
+                  system = "aarch64-linux";
+                  modules = [
+                    {
+                      lima = {
+                        enable = true;
+                        cpus = 4;
+                        memory = "4GiB";
+                        vmType = "vz";
+                        rosetta.enabled = true;
+                        mounts = [
+                          {
+                            location = "/Users";
+                            writable = false;
+                          }
+                        ];
+                      };
+                      users.users.root.password = "";
+                      system.stateVersion = "26.05";
+                    }
+                  ];
+                };
+              };
             };
           }
         ];

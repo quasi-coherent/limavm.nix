@@ -1,73 +1,102 @@
 {
-  den,
-  inputs,
+  coreutils,
   lib,
-  ...
+  lima,
+  limaYaml,
+  name ? "limavm-nix",
+  writeShellApplication,
 }:
-let
-  # Default places to emit the wrapper: the guest's arch on both darwin
-  # and linux. `limactl` runs on the host (not the guest), so the wrapper
-  # must live under a system the user actually invokes `nix run` from.
-  defaultRunnerSystems =
-    guestSystem:
-    let
-      arch = lib.head (lib.splitString "-" guestSystem);
-    in
-    [
-      "${arch}-darwin"
-      "${arch}-linux"
-    ];
-
-  mkLimaPkg =
-    host:
-    let
-      vmBuilt = host.instantiate {
-        inherit (host) system;
-        modules = [
-          ../lima.nix
-          (den.lib.aspects.resolve host.class (den.lib.resolveEntity "host" { inherit host; }))
-        ];
-      };
-
-      cfg = vmBuilt.config.lima;
-      limaYaml = vmBuilt.config.system.build.limaYaml;
-      limaImage = vmBuilt.config.system.build.limaImage;
-
-      runnerSystems =
-        if cfg.runnerSystems != [ ] then cfg.runnerSystems else defaultRunnerSystems host.system;
-
-      runnerFor =
-        runnerSystem:
-        let
-          pkgs = inputs.nixpkgs.legacyPackages.${runnerSystem};
-        in
-        pkgs.writeShellApplication {
-          name = host.name;
-          runtimeInputs = [ pkgs.lima ];
-          text = ''
-            ${pkgs.coreutils}/bin/true ${limaImage}
-            exec limactl start --tty=false --name=${host.name} ${limaYaml}
-          '';
-        };
-    in
-    if !cfg.runner then
-      { }
-    else
-      lib.listToAttrs (
-        map (sys: {
-          name = sys;
-          value.${host.name} = runnerFor sys;
-        }) runnerSystems
-      );
-
-  limaPkgs = lib.pipe den.hosts [
-    lib.attrValues
-    (lib.concatMap lib.attrValues)
-    (lib.filter (h: h.class == "nixos"))
-    (map mkLimaPkg)
-    (lib.foldl' lib.recursiveUpdate { })
+writeShellApplication {
+  name = "lctl-${name}";
+  description = "Pre-configured `limactl` binary for the VM ${name}";
+  runtimeInputs = [
+    coreutils
+    lima
   ];
-in
-{
-  flake.packages = limaPkgs;
+  text = ''
+    export PATH=${
+      lib.makeBinPath [
+        coreutils
+        lima
+      ]
+    }:$PATH
+
+    export LIMA_INSTANCE="${name}"
+    config="${limaYaml}"
+
+    usage() {
+      cat <<EOF
+    lctl-${name} [COMMAND] [OPTIONS]
+        `limactl` preconfigured for the VM ${name}
+
+    Custom commands:
+      create              Create an instance of Lima
+      delete              Delete an instance of Lima
+      list                List instances of Lima
+      yaml                Print the Lima config that ${name} is using
+      edit                Edit the instance of ${name}
+      restart             Restart ${name}
+      shell               Execute shell in ${name}
+      start               Start an instance of ${name}
+      rebuild             Rebuild the ${name} system
+      stop                Stop the instance of ${name}
+      shell               Execute shell in ${name}
+      copy                Copy files between host and ${name}
+      raw                 Forwards the remaining input to `limactl`
+
+      -h, --help, help           Show this message.
+    EOF
+    }
+
+    cmd="''${1:-start}"
+    shift || true
+
+    case "$cmd" in
+      -h|--help|help)
+        usage
+        ;;
+      yaml)
+        cat ${limaYaml}
+        ;;
+      create)
+        limactl create --tty=false --name="${name}" "$config" "$@"
+        ;;
+      delete)
+        limactl delete "${name}" "$@"
+        ;;
+      list|ls)
+        limactl list "$@"
+        ;;
+      edit)
+        limactl edit "${name}" "$@"
+        ;;
+      start)
+        limactl start --tty=false --name="${name}" "$config" "$@"
+        ;;
+      stop)
+        limactl stop "${name}" "$@"
+        ;;
+      restart)
+        limactl stop "${name}" || true
+        limactl start --tty=false --name="${name}" "$config"
+        ;;
+      shell)
+        limactl shell "${name}" "$@"
+        ;;
+      rebuild)
+        limactl shell "${name}" sudo nixos-rebuild switch "$@"
+        ;;
+      copy|cp)
+        limactl copy "$@"
+        ;;
+      raw)
+        limactl "$@"
+        ;;
+      *)
+        echo "Unknown command: $cmd" >&2
+        usage >&2
+        exit 1
+        ;;
+    esac
+  '';
 }
