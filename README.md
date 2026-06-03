@@ -77,7 +77,7 @@ yaml = limavm.lib.mkGuestYaml {
 };
 ```
 
-## `den` integration
+## den integration
 
 If you use the [den](https://den.denful.dev) framework, `lima` is a den class extending
 `host` that two batteries are exposed for:
