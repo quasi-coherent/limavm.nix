@@ -20,7 +20,7 @@ The flake exposes the conventional modules:
 | `nixosModules.lima`     | `systemd.services`    |
 | `homeModules.lima`      | One or the other |
 
-It also exposes a less conventional one, `limavm.flakeModules.den`; see [below][#den-integration].
+It also exposes a less conventional one, `limavm.flakeModules.den`; see [below](#den-integration).
 
 ### Declaring a VM
 
