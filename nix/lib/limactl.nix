@@ -8,7 +8,6 @@
 }:
 writeShellApplication {
   name = "lctl-${name}";
-  description = "Pre-configured `limactl` binary for the VM ${name}";
   runtimeInputs = [
     coreutils
     lima
