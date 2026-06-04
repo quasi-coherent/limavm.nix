@@ -67,13 +67,13 @@ let
   den.mkLimaPkgs =
     {
       config,
+      den,
       inputs,
       lib,
       ...
     }:
     let
-      inherit (inputs) nixpkgs den;
-      pkgsFor = sys: nixpkgs.legacyPackages.${sys};
+      pkgsFor = sys: inputs.nixpkgs.legacyPackages.${sys};
       cfg = config.lima;
 
       runnerFor =

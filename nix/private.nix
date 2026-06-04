@@ -69,26 +69,18 @@
         # It's important to not write a check that needs to create the derivation
         # path `.drvPath` for anything that references the image `limaImage`.
         # That's because it'll try to download all of nixpkgs, which is crazy.
+        # So this creates lima.yaml without the boot image hash.
         #
-        # This creates lima.yaml without the boot image hash.
+        # But we need to catch issues with the den batteries, so this works that
+        # path: build `lima-check-vm` through the `toLima` battery/host nixos
+        # aspect, then evaluate `lima.yaml`.
         lima-runner-eval =
           let
-            nixosCfg = inputs.nixpkgs.lib.nixosSystem {
-              system = "aarch64-linux";
+            host = den.hosts.aarch64-linux.lima-check-vm;
+            nixosCfg = host.instantiate {
+              inherit (host) system;
               modules = [
-                ./options.nix
-                ./lima.nix
-                {
-                  lima = {
-                    enable = true;
-                    cpus = 2;
-                    memory = "2GiB";
-                    vmType = "vz";
-                    runner = true;
-                  };
-                  users.users.root.password = "";
-                  system.stateVersion = "26.05";
-                }
+                (den.lib.aspects.resolve "nixos" (den.lib.resolveEntity "host" { inherit host; }))
               ];
             };
           in

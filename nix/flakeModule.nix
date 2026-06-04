@@ -20,21 +20,14 @@
     };
 
     flakeModules = {
-      default = self.flakeModules.den;
       den = {
         imports = [
           ./den
           ./modules/den.nix
         ];
       };
-    };
-
-    homeModules = {
-      default = self.homeModules.lima;
-      lima = {
-        imports = [
-          ./modules/home.nix
-        ];
+      home-manager = {
+        imports = [ ./modules/home.nix ];
       };
     };
 
