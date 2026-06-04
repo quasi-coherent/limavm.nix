@@ -26,7 +26,7 @@ writeShellApplication {
     usage() {
       cat <<EOF
     lctl-${name} [COMMAND] [OPTIONS]
-        `limactl` preconfigured for the VM ${name}
+        'limactl' preconfigured for the VM ${name}
 
     Custom commands:
       create              Create an instance of Lima
@@ -41,7 +41,7 @@ writeShellApplication {
       stop                Stop the instance of ${name}
       shell               Execute shell in ${name}
       copy                Copy files between host and ${name}
-      raw                 Forwards the remaining input to `limactl`
+      raw                 Forwards the remaining input to 'limactl'
 
       -h, --help, help           Show this message.
     EOF
