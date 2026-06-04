@@ -23,7 +23,6 @@
       den = {
         imports = [
           ./den
-          ./options.nix
           ./modules/den.nix
         ];
       };
