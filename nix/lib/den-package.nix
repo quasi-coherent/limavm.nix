@@ -1,5 +1,6 @@
 {
   coreutils,
+  callPackage,
   den,
   host,
   lib,
@@ -7,19 +8,6 @@
   writeShellApplication,
 }:
 let
-  lctl =
-    limaYaml: name:
-    (import ./limactl {
-      inherit
-        coreutils
-        lib
-        lima
-        limaYaml
-        name
-        writeShellApplication
-        ;
-    });
-
   vmBuilt = host.instantiate {
     inherit (host) system;
     modules = [
@@ -28,6 +16,14 @@ let
     ];
   };
   limaYaml = vmBuilt.config.system.build.limaYaml;
-  limaPkg = lctl limaYaml host.name;
 in
-limaPkg
+callPackage ./limactl.nix {
+  inherit
+    coreutils
+    lib
+    lima
+    limaYaml
+    writeShellApplication
+    ;
+  name = host.name;
+}

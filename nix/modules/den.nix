@@ -1,20 +1,24 @@
 {
-  config,
   den,
-  inputs,
   lib,
   ...
 }:
 let
-  packages = (import ../lib).den.mkLimaPkgs {
-    inherit
-      config
-      den
-      inputs
-      lib
-      ;
-  };
+  hostsList = lib.pipe den.hosts [
+    lib.attrValues
+    (lib.concatMap lib.attrValues)
+    (lib.filter (h: h.class == "nixos"))
+  ];
 in
 {
-  config.flake.packages = packages;
+  perSystem =
+    { pkgs, ... }:
+    {
+      packages = lib.listToAttrs (
+        map (host: {
+          name = host.name;
+          value = pkgs.callPackage ../lib/den-package.nix { inherit den host; };
+        }) hostsList
+      );
+    };
 }

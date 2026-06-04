@@ -1,7 +1,6 @@
 {
   inputs,
   lib,
-  self,
   den,
   ...
 }:
@@ -84,10 +83,7 @@
               ];
             };
           in
-          self.lib.evalLimaYaml {
-            inherit pkgs;
-            config = nixosCfg.config;
-          };
+          nixosCfg.config.system.build.evalYaml;
 
         lima-plain-eval =
           let
@@ -104,10 +100,7 @@
               ];
             };
           in
-          self.lib.evalLimaYaml {
-            inherit pkgs;
-            config = nixosCfg.config;
-          };
+          nixosCfg.config.system.build.evalYaml;
       };
     };
 }

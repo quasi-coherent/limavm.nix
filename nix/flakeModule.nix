@@ -1,4 +1,4 @@
-{ self, ... }:
+{ self, inputs, ... }:
 {
   systems = [
     "aarch64-darwin"
@@ -8,7 +8,7 @@
   ];
 
   flake = {
-    lib = import ./lib;
+    lib = import ./lib { inherit (inputs.nixpkgs) lib; };
 
     darwinModules = {
       default = self.darwinModules.lima;
@@ -53,6 +53,10 @@
       darwin-host = {
         path = ../templates/darwin-host;
         description = "Pure nix-darwin host + nixosSystem guest, no den, wired via darwinModules.host.";
+      };
+      ci = {
+        path = ../templates/ci;
+        description = "Full-build smoke test: builds the qcow2 image and lima.yaml. Intended for CI, not local checks.";
       };
     };
   };

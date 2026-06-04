@@ -6,16 +6,13 @@
 }:
 let
   cfg = config.services.limavm-nix;
-  mkGuestYaml = (import ../lib).mkGuestYaml;
+  lima-lib = import ../lib { inherit lib; };
   yamlOf =
     vm:
     if vm.yaml != null then
       vm.yaml
     else
-      mkGuestYaml {
-        inherit pkgs;
-        inherit (vm.guest) system modules;
-      };
+      (lima-lib.evalGuest pkgs { inherit (vm.guest) system modules; }).config.system.build.limaYaml;
 in
 {
   options.services.limavm-nix = lib.mkOption {

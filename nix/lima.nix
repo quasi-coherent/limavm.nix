@@ -9,11 +9,26 @@ let
   LIMA_CIDATA_MNT = "/mnt/lima-cidata";
   LIMA_CIDATA_DEV = "/dev/disk/by-label/cidata";
 
-  limaYaml = (import ./lib).mkLimaYaml { inherit config pkgs; };
   cfg = config.lima;
+  lima-lib = import ./lib { inherit lib; };
+
+  limaSettings = lima-lib.yaml.mkLimaSettings cfg;
+
+  limaImage = lima-lib.mkImage {
+    inherit pkgs lib config;
+    imageCfg = cfg.image;
+  };
+
+  evalYaml = lima-lib.yaml.renderYaml pkgs "eval.yaml" limaSettings;
+
+  limaYaml = lima-lib.yaml.renderYaml pkgs "lima.yaml" (
+    lima-lib.yaml.withImage limaSettings {
+      inherit (cfg) arch;
+      imagePath = "${limaImage}/nixos.qcow2";
+    }
+  );
 in
 {
-
   imports = [ "${modulesPath}/profiles/qemu-guest.nix" ];
 
   config =
@@ -32,7 +47,7 @@ in
     lib.mkIf cfg.enable {
       inherit assertions;
 
-      system.build = { inherit limaYaml; };
+      system.build = { inherit limaYaml evalYaml limaImage; };
 
       # Hard-coded nixosSystem options that Lima fails to boot without:
       nix.settings = {

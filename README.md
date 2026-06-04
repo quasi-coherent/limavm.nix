@@ -14,13 +14,12 @@ inputs.limavm.inputs.nixpkgs.follows = "nixpkgs";
 
 The flake exposes the conventional modules:
 
-| Output                  | Runs guests via       |
-| ----------------------- | --------------------- |
-| `darwinModules.lima`    | `launchd.user.agents` |
-| `nixosModules.lima`     | `systemd.services`    |
-| `homeModules.lima`      | One or the other |
-
-It also exposes a less conventional one, `limavm.flakeModules.den`; see [below](#den-integration).
+| Output                      | Runs guests via      |
+| --------------------------- | -------------------- |
+| `darwinModules.lima` | `launchd.user.agents` |
+| `nixosModules.lima` | `systemd.services` |
+| `flakeModules.home-manager` | One or the other |
+| `flakeModules.den` | See [below](#den-integration) |
 
 ### Declaring a VM
 
@@ -65,17 +64,23 @@ darwinConfigurations.laptop = darwin.lib.darwinSystem {
 };
 ```
 
-### `mkGuestYaml`
+### Ad-hoc guests via `evalGuest`
 
-Ad-hoc VMs can use `mkGuestYaml`:
+For one-off VMs, evaluate a guest config and grab its rendered `lima.yaml`:
 
 ```nix
-yaml = limavm.lib.mkGuestYaml {
-  inherit pkgs;
+yaml = (limavm.lib.evalGuest pkgs {
   system = "aarch64-linux";
   modules = [ { lima.enable = true; system.stateVersion = "26.05"; } ];
-};
+}).config.system.build.limaYaml;
 ```
+
+`limavm.lib.evalGuest` returns a `nixosSystem` and here the `system.build.limaYaml`
+attribute is the assembled YAML config for `limactl`, including the VM image tag+sha.
+
+Evaluating this requires building the image, which is sometimes very much not what you
+want.  To fetch the YAML file minus the image tag, use `system.build.evalYaml` instead.
+Of course, it is not valid to give this to `limactl`.
 
 ## den integration
 
@@ -103,11 +108,3 @@ den.aspects.vm.includes = [
   })
 ];
 ```
-
-Then:
-
-```console
-$ nix run .#packages.aarch64-darwin.vm
-```
-
-starts the VM via `limactl start --name vm <generated lima.yaml>`.

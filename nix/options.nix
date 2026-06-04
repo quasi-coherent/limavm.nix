@@ -1,7 +1,4 @@
-{ pkgs, ... }:
-let
-  inherit (pkgs) lib;
-in
+{ lib, pkgs, ... }:
 {
   options.lima = with lib; {
     enable = mkOption {
@@ -168,16 +165,6 @@ in
       default = false;
       internal = true;
       description = "Set by `den.batteries.toLima`; presence triggers mkLimactl.";
-    };
-
-    runnerSystems = mkOption {
-      type = types.listOf types.str;
-      default = [ ];
-      defaultText = literalExpression ''[ "''${arch}-darwin" "''${arch}-linux" ]'';
-      description = ''
-        Systems where the `limactl` wrapper package is emitted. Empty list
-        means use the default (host arch on both darwin and linux).
-      '';
     };
   };
 }
