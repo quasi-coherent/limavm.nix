@@ -1,4 +1,4 @@
-{ inputs, self, ... }:
+{ self, ... }:
 {
   systems = [
     "aarch64-darwin"
@@ -22,7 +22,6 @@
     flakeModules = {
       default = self.flakeModules.den;
       den = {
-        inherit inputs;
         imports = [
           ./den
           ./modules/den.nix
