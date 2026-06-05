@@ -1,4 +1,4 @@
-<h2 align="center">liamvm.nix</h2>
+<h2 align="center">limavm.nix</h2>
 
 A flake for building and/or running [Lima]-managed VMs on macOS or Linux hosts.
 
