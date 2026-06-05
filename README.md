@@ -1,6 +1,6 @@
 <h2 align="center">limavm.nix</h2>
 
-A flake for building and/or running [Lima]-managed VMs on macOS or Linux hosts.
+A flake for building and running [Lima]-managed VMs on macOS or Linux hosts.
 
 ## Usage
 
