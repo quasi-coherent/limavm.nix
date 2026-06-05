@@ -1,8 +1,8 @@
-# limavm.nix
+<h2 align="center">liamvm.nix</h2>
 
 A flake for building and/or running [Lima]-managed VMs on macOS or Linux hosts.
 
-# Usage
+## Usage
 
 ```nix
 inputs.limavm.url = "github:quasi-coherent/limavm.nix";
@@ -22,7 +22,7 @@ The flake exposes conventional modules:
 Each offer different ways to get a Lima VM that have different requirements for different
 host systems.
 
-## Using a pre-built image
+### Using a pre-built image
 
 You can rely on an existing disk image and reference it in a `lima.yaml` that follows the format
 that a "normal" use of Lima with a [template](https://lima-vm.io/docs/templates/) would point to.
@@ -36,16 +36,10 @@ This would create a `launchd` agent or `systemd` user service from VM defined in
 
 Some `lima.yaml` examples can be found in the [templates][lima-yaml] provided by Lima.
 
-## Building from a `nixosSystem`
+### Building from a `nixosSystem`
 
-It's also possible to create a Lima VM guest by building the disk image from a custom `nixosSystem`.
-
-> For a MacOS host, this disk image is built on `aarch64-linux`/`x86_64-linux` and cannot be produced
-> natively.  Users of `nix-darwin` can enable the `nix.linux-builder` [option][nix-linux-builder] to
-> be able to build nixOS VM images.  DeterminateNix users can use the native Linux [builder][detsys-builder],
-> which is probably the best available option.
-
-A NixOS guest can be defined inline:
+It's also possible to create a Lima VM guest by building the disk image from a custom `nixosSystem`
+defined inline:
 
 ```nix
 # darwin host running a NixOS guest
@@ -82,6 +76,12 @@ darwinConfigurations.laptop = darwin.lib.darwinSystem {
 
 This merges `vms.*.guest.modules` into a `nixosSystem`, which is used to build a Lima VM, and in this case,
 a `launchd` agent is created for `darwinConfigurations.laptop` that starts and runs the VM.
+
+#### MacOS hosts
+
+For a MacOS host, this disk image is built on `aarch64-linux`/`x86_64-linux` and cannot be produced natively.
+Users of `nix-darwin` can enable the `nix.linux-builder` [option][nix-linux-builder] to be able to build nixOS VM images.
+DeterminateNix users can use the native Linux [builder][detsys-builder], which is probably the best available option.
 
 ### den integration
 
