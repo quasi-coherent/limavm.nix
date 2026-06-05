@@ -1,18 +1,15 @@
 # limavm.nix
 
-A flake for running NixOS as a [Lima](https://lima-vm.io/)-managed VM on macOS
-or Linux hosts.
+A flake for building and/or running [Lima]-managed VMs on macOS or Linux hosts.
 
-See the [templates](./templates) directory for examples you can run.
-
-## Usage
+# Usage
 
 ```nix
 inputs.limavm.url = "github:quasi-coherent/limavm.nix";
 inputs.limavm.inputs.nixpkgs.follows = "nixpkgs";
 ```
 
-The flake exposes the conventional modules:
+The flake exposes conventional modules:
 
 | Output                      | Runs guests via      |
 | --------------------------- | -------------------- |
@@ -21,15 +18,34 @@ The flake exposes the conventional modules:
 | `flakeModules.home-manager` | One or the other |
 | `flakeModules.den` | See [below](#den-integration) |
 
-### Declaring a VM
 
-You can declare a `vms.<name>` entry from a pre-built `lima.yaml`:
+Each offer different ways to get a Lima VM that have different requirements for different
+host systems.
+
+## Using a pre-built image
+
+You can rely on an existing disk image and reference it in a `lima.yaml` that follows the format
+that a "normal" use of Lima with a [template](https://lima-vm.io/docs/templates/) would point to.
+This `lima.yaml` can be used to declare a `services.limavm-nix.vms` entry:
 
 ```nix
 services.limavm-nix.vms.work.yaml = ./lima.yaml; # or some store path
 ```
 
-The NixOS guest can be defined inline too:
+This would create a `launchd` agent or `systemd` user service from VM defined in `lima.yaml`.
+
+Some `lima.yaml` examples can be found in the [templates][lima-yaml] provided by Lima.
+
+## Building from a `nixosSystem`
+
+It's also possible to create a Lima VM guest by building the disk image from a custom `nixosSystem`.
+
+> For a MacOS host, this disk image is built on `aarch64-linux`/`x86_64-linux` and cannot be produced
+> natively.  Users of `nix-darwin` can enable the `nix.linux-builder` [option][nix-linux-builder] to
+> be able to build nixOS VM images.  DeterminateNix users can use the native Linux [builder][detsys-builder],
+> which is probably the best available option.
+
+A NixOS guest can be defined inline:
 
 ```nix
 # darwin host running a NixOS guest
@@ -64,28 +80,13 @@ darwinConfigurations.laptop = darwin.lib.darwinSystem {
 };
 ```
 
-### Ad-hoc guests via `evalGuest`
+This merges `vms.*.guest.modules` into a `nixosSystem`, which is used to build a Lima VM, and in this case,
+a `launchd` agent is created for `darwinConfigurations.laptop` that starts and runs the VM.
 
-For one-off VMs, evaluate a guest config and grab its rendered `lima.yaml`:
+### den integration
 
-```nix
-yaml = (limavm.lib.evalGuest pkgs {
-  system = "aarch64-linux";
-  modules = [ { lima.enable = true; system.stateVersion = "26.05"; } ];
-}).config.system.build.limaYaml;
-```
-
-`limavm.lib.evalGuest` returns a `nixosSystem` and here the `system.build.limaYaml`
-attribute is the assembled YAML config for `limactl`, including the VM image tag+sha.
-
-Evaluating this requires building the image, which is sometimes very much not what you
-want.  To fetch the YAML file minus the image tag, use `system.build.evalYaml` instead.
-Of course, it is not valid to give this to `limactl`.
-
-## den integration
-
-If you use the [den](https://den.denful.dev) framework, `lima` is a den class extending
-`host` that two batteries are exposed for:
+If you use the [den](https://den.denful.dev) framework, `lima` is a den class extending `host` that two
+batteries are exposed for:
 
 ```nix
 # Run a list of den hosts as Lima guests on the including host.
@@ -108,3 +109,34 @@ den.aspects.vm.includes = [
   })
 ];
 ```
+
+### Ad-hoc guests via `evalGuest`
+
+For one-off VMs, evaluate a guest config and grab its rendered `lima.yaml`:
+
+```nix
+yaml = (limavm.lib.evalGuest pkgs {
+  system = "aarch64-linux";
+  modules = [ { lima.enable = true; system.stateVersion = "26.05"; } ];
+}).config.system.build.limaYaml;
+```
+
+`limavm.lib.evalGuest` returns a `nixosSystem` and here the `system.build.limaYaml` attribute is the assembled `lima.yaml`
+config, including the VM image tag+sha.
+
+Evaluating this requires building the image, which is sometimes very much not what you want.  To fetch the YAML file minus
+the image tag, use `system.build.evalYaml` instead. Of course, it is not valid to give this to `limactl`.
+
+## TODO
+
+1. Build a base image and expose it in this flake.  Distribute it via cachix.
+   - This is for MacOS users to avoid the linux-builder song and dance.
+2. Add a module and option `lima.baseImage` option to specify a pre-built image alongside the other `lima` options.
+   Then:
+   - This flake would provide the wiring to _first_ launch the VM and _then_ deploy a `nixosSystem` inside the VM.
+   - This way you can get a custom nixOS system but without having to build it from scratch yourself.
+
+[Lima]: https://lima-vm.io/
+[lima-yaml]: https://github.com/lima-vm/lima/tree/master/templates
+[nix-linux-builder]: https://nix-darwin.github.io/nix-darwin/manual/index.html#opt-nix.linux-builder.enable
+[detsys-builder]: https://docs.determinate.systems/determinate-nix/linux-builder/

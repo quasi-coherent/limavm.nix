@@ -62,7 +62,10 @@ in
       security.sudo.wheelNeedsPassword = false;
 
       boot = {
-        kernelParams = [ "console=tty0" ];
+        kernelParams = [
+          "console=tty0"
+          (if cfg.arch == "aarch64" then "console=ttyAMA0,115200" else "console=ttyS0,115200")
+        ];
         loader.grub = {
           device = "nodev";
           efiSupport = true;
@@ -106,6 +109,8 @@ in
         serviceConfig = {
           Type = "oneshot";
           RemainAfterExit = true;
+          StandardOutput = "journal+console";
+          StandardError = "journal+console";
         };
         path = with pkgs; [
           shadow
@@ -117,7 +122,7 @@ in
           util-linux
         ];
         script = ''
-          set -eu
+          set -eux
 
           echo "attempting to fetch configuration from LIMA user data..."
           if [ -f ${LIMA_CIDATA_MNT}/lima.env ]; then
@@ -139,11 +144,18 @@ in
           # regardless of useradd's defaults.
           ln -sf /run/current-system/sw/bin/bash /bin/bash
 
+          # NixOS sets UID_MIN=1000 / SYS_UID_MAX=999, so a Lima-supplied UID like
+          # 503 falls outside both ranges and useradd skips creating the per-user
+          # group. Create it explicitly so later `install -g $USER` succeeds.
+          if ! getent group "$LIMA_CIDATA_USER" >/dev/null 2>&1; then
+            groupadd --gid "$LIMA_CIDATA_UID" "$LIMA_CIDATA_USER"
+          fi
           if ! id -u "$LIMA_CIDATA_USER" >/dev/null 2>&1; then
             useradd \
               --create-home \
               --home-dir "$LIMA_CIDATA_HOME" \
               --uid "$LIMA_CIDATA_UID" \
+              --gid "$LIMA_CIDATA_USER" \
               --shell /run/current-system/sw/bin/bash \
               --groups wheel,users \
               "$LIMA_CIDATA_USER"

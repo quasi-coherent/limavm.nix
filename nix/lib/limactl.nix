@@ -7,7 +7,7 @@
   writeShellApplication,
 }:
 writeShellApplication {
-  name = "lctl-${name}";
+  name = "${name}-lima";
   runtimeInputs = [
     coreutils
     lima
@@ -25,7 +25,7 @@ writeShellApplication {
 
     usage() {
       cat <<EOF
-    lctl-${name} [COMMAND] [OPTIONS]
+    ${name}-lima [COMMAND] [OPTIONS]
         'limactl' preconfigured for the VM ${name}
 
     Custom commands:
