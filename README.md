@@ -111,7 +111,8 @@ MacOS users.
 The module options expose `lima.bootstrap`, which can be used to build
 a custom `nixosConfigurations.<attr>` via
 `nixos-rebuild switch --flake` into the resulting Lima VM on first
-boot, obviating the need to build the disk image on the host:
+boot, obviating the need to build the disk image on the host to be able
+to merge custom nixos options:
 
 ```nix
 flake.nixosConfigurations.myvm = nixpkgs.lib.nixosSystem {
