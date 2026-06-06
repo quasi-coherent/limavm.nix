@@ -39,7 +39,7 @@ build an image altogether.
 Each of the modules have different uses and requirements for
 different host systems.
 
-#### NixOS host and NixOS guest
+### NixOS host and NixOS guest
 
 One or more `nixosSystem`s can be declared in a `services.limavm-nix`
 configuration.  These ultimately become systemd services in the
@@ -47,7 +47,7 @@ configuration.  These ultimately become systemd services in the
 
 See the [template](./templates/nixos-host) example.
 
-#### Darwin host and NixOS guest
+### Darwin host and NixOS guest
 
 In an identical fashion, one or more `nixosSystem`s can be declared in
 the `services.limavm-nix` option of a `darwinSystem`.  These become
@@ -62,7 +62,7 @@ extra tools available on the host, e.g., the service
 
 Or avoid this by...
 
-#### Using a pre-built image
+### Using a pre-built image
 
 You can also reference an image that already exists somewhere to boot
 from, which is kind of how it works in a "normal" use of Lima: you
@@ -158,7 +158,7 @@ yaml = limavm.lib.withImage {
 } guest.config.system.build.limaSettings;
 ```
 
-#### den integration
+### den integration
 
 If you use the [den](https://den.denful.dev) framework, `lima` is a
 den class extending `host` that two batteries are exposed for.
