@@ -14,19 +14,9 @@ let
 
   limaSettings = lima-lib.yaml.mkLimaSettings cfg;
 
-  limaImage = lima-lib.mkImage {
-    inherit pkgs lib config;
-    imageCfg = cfg.image;
-  };
-
   evalYaml = lima-lib.yaml.renderYaml pkgs "eval.yaml" limaSettings;
 
-  limaYaml = lima-lib.yaml.renderYaml pkgs "lima.yaml" (
-    lima-lib.yaml.withImage limaSettings {
-      inherit (cfg) arch;
-      imagePath = "${limaImage}/nixos.qcow2";
-    }
-  );
+  imageIsPrebuilt = builtins.isString cfg.image;
 in
 {
   imports = [ "${modulesPath}/profiles/qemu-guest.nix" ];
@@ -47,7 +37,15 @@ in
     lib.mkIf cfg.enable {
       inherit assertions;
 
-      system.build = { inherit limaYaml evalYaml limaImage; };
+      system.build = {
+        inherit evalYaml limaSettings;
+      }
+      // lib.optionalAttrs (!imageIsPrebuilt) {
+        limaImage = lima-lib.mkImage {
+          inherit pkgs lib config;
+          imageCfg = cfg.image;
+        };
+      };
 
       # Hard-coded nixosSystem options that Lima fails to boot without:
       nix.settings = {
@@ -64,6 +62,8 @@ in
       boot = {
         kernelParams = [
           "console=tty0"
+          # Enable journal output to serial console because that's where the useful
+          # debugging logs go for QEMU ($LIMA_HOME/<vm>/serial.log).
           (if cfg.arch == "aarch64" then "console=ttyAMA0,115200" else "console=ttyS0,115200")
         ];
         loader.grub = {
@@ -223,5 +223,81 @@ in
             --vsock-port "$LIMA_CIDATA_VSOCK_PORT"
         '';
       };
+
+      # Generic post-boot oneshot.
+      systemd.services.lima-post-boot = lib.mkIf (cfg.postBoot != [ ]) {
+        description = "Lima post-boot user scripts";
+        after = [ "lima-init.service" ];
+        requires = [ "lima-init.service" ];
+        wantedBy = [ "multi-user.target" ];
+        serviceConfig = {
+          Type = "oneshot";
+          RemainAfterExit = true;
+          StandardOutput = "journal+console";
+          StandardError = "journal+console";
+        };
+        script = lib.concatStringsSep "\n" (
+          map (s: if builtins.isString s then s else "${lib.getExe s}") cfg.postBoot
+        );
+      };
+
+      # Define this always so that a plain base image gets the limactl runner
+      # like it would if there were a user-supplied bootstrap.
+      systemd.services.lima-bootstrap = {
+        description = "Lima bootstrap: nixos-rebuild into the consumer's flake";
+        after = [
+          "lima-init.service"
+          "network-online.target"
+        ];
+        requires = [ "lima-init.service" ];
+        wants = [ "network-online.target" ];
+        wantedBy = [ "multi-user.target" ];
+        unitConfig.ConditionPathExists = "/etc/lima-bootstrap/env";
+        serviceConfig = {
+          Type = "oneshot";
+          RemainAfterExit = true;
+          StandardOutput = "journal+console";
+          StandardError = "journal+console";
+        };
+        path = with pkgs; [
+          nixos-rebuild
+          git
+          coreutils
+          nix
+        ];
+        script = ''
+          set -eu
+          . /etc/lima-bootstrap/env
+          : "''${FLAKE:?}"
+          : "''${ATTR:?}"
+          MARKER="''${MARKER:-/var/lib/lima-bootstrap.done}"
+          if [ "''${RUN_ONCE:-true}" = "true" ] && [ -f "$MARKER" ]; then
+            echo "lima-bootstrap: already converged ($MARKER exists)"
+            exit 0
+          fi
+          nixos-rebuild switch --flake "$FLAKE#$ATTR"
+          mkdir -p "$(dirname "$MARKER")"
+          touch "$MARKER"
+        '';
+      };
+
+      # When the consumer has set `lima.bootstrap.flake`, emit a `provision`
+      # script to write the env file for the `lima-bootstrap` systemd unit.
+      # Has to be placed last in the list of `lima.provision.system` scripts so
+      # that any user-supplied ones run first.
+      lima.provision.system = lib.mkIf (cfg.bootstrap.flake != null) (
+        lib.mkAfter [
+          ''
+            set -eu
+            mkdir -p /etc/lima-bootstrap
+            cat > /etc/lima-bootstrap/env <<EOF
+            FLAKE=${cfg.bootstrap.flake}
+            ATTR=${cfg.bootstrap.attr}
+            MARKER=${cfg.bootstrap.markerFile}
+            RUN_ONCE=${if cfg.bootstrap.runOnce then "true" else "false"}
+            EOF
+          ''
+        ]
+      );
     };
 }

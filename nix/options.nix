@@ -74,21 +74,34 @@
       description = "Disk size Lima reports to the guest.";
     };
 
-    image = {
-      diskSize = mkOption {
-        type = types.either types.str types.ints.positive;
-        default = "auto";
-        description = "Image size passed to make-disk-image.";
-      };
-      additionalSpace = mkOption {
-        type = types.str;
-        default = "2G";
-      };
-      additionalPaths = mkOption {
-        type = types.listOf types.package;
-        default = [ ];
-        description = "Extra store paths to include in the disk image closure.";
-      };
+    image = mkOption {
+      type = types.either types.str (
+        types.submodule {
+          options = {
+            diskSize = mkOption {
+              type = types.either types.str types.ints.positive;
+              default = "auto";
+              description = "Image size passed to make-disk-image.";
+            };
+            additionalSpace = mkOption {
+              type = types.str;
+              default = "2G";
+            };
+            additionalPaths = mkOption {
+              type = types.listOf types.package;
+              default = [ ];
+              description = "Extra store paths to include in the disk image closure.";
+            };
+          };
+        }
+      );
+      default = { };
+      description = ''
+        Image source for the guest.  Either a URL/absolute path to a prebuilt qcow2, or
+        a submodule of build args for `make-disk-image`.  The former doesn't build any
+        image on the host.  The latter does, so has additional requirements of a darwin
+        host system.
+      '';
     };
 
     mountType = mkOption {
@@ -152,6 +165,47 @@
         type = types.listOf types.lines;
         default = [ ];
         description = "Shell scripts run as the lima user at boot.";
+      };
+    };
+
+    postBoot = mkOption {
+      type = types.listOf (types.either types.str types.package);
+      default = [ ];
+      description = ''
+        Scripts run by `lima-post-boot.service` after `lima-init.service`,
+        in list order, by a single systemd oneshot. Strings are inlined;
+        packages are executed via `lib.getExe`. The author is responsible
+        for idempotency if a script shouldn't repeat across boots.
+      '';
+    };
+
+    bootstrap = {
+      flake = mkOption {
+        type = types.nullOr types.str;
+        default = null;
+        description = ''
+          Flake reference to rebuild into on first boot, e.g.
+          "/Users/me/dots" (with a matching `lima.mounts` entry) or
+          "github:me/dots". When null, no bootstrap rebuild is performed.
+        '';
+      };
+      attr = mkOption {
+        type = types.str;
+        default = "default";
+        description = "nixosConfigurations attribute name to rebuild into.";
+      };
+      runOnce = mkOption {
+        type = types.bool;
+        default = true;
+        description = ''
+          Skip the rebuild after the first successful run (marker file).
+          Set false to re-converge on every boot.
+        '';
+      };
+      markerFile = mkOption {
+        type = types.str;
+        default = "/var/lib/lima-bootstrap.done";
+        description = "Marker file written after a successful bootstrap rebuild.";
       };
     };
 

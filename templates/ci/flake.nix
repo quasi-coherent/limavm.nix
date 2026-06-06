@@ -1,6 +1,5 @@
 {
   description = "Full-build smoke test for limavm.nix — builds the qcow2 image and lima.yaml. Run in CI, not locally.";
-
   inputs.nixpkgs.url = "github:nixos/nixpkgs/nixpkgs-unstable";
   inputs.flake-parts.url = "github:hercules-ci/flake-parts";
   inputs.flake-parts.inputs.nixpkgs-lib.follows = "nixpkgs";
@@ -20,7 +19,7 @@
       flake.nixosConfigurations.ci-guest = inputs.nixpkgs.lib.nixosSystem {
         system = "x86_64-linux";
         modules = [
-          inputs.limavm.nixosModules.lima
+          inputs.limavm.nixosModules.guest
           {
             lima = {
               enable = true;
@@ -35,20 +34,25 @@
       };
 
       perSystem =
-        { self', ... }:
+        {
+          pkgs,
+          self',
+          ...
+        }:
         let
           guest = inputs.self.nixosConfigurations.ci-guest;
+          image = guest.config.system.build.limaImage;
+
+          lima-yaml = inputs.limavm.lib.withImage {
+            inherit pkgs image;
+            inherit (guest.config.lima) arch;
+          } guest.config.system.build.limaSettings;
         in
         {
-          # Expose the heavy artifacts so CI can `nix build .#image` etc.
           packages = {
-            image = guest.config.system.build.limaImage;
-            lima-yaml = guest.config.system.build.limaYaml;
+            inherit image lima-yaml;
           };
 
-          # And as a check so `nix flake check` in CI exercises the full pipeline.
-          # Locally users should `nix flake check` in the *library* repo, which
-          # stays fast — this check is intentionally expensive.
           checks = {
             inherit (self'.packages) image lima-yaml;
           };

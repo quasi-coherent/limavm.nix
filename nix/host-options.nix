@@ -13,11 +13,12 @@
     vms = lib.mkOption {
       default = { };
       description = ''
-        VMs to orchestrate on this host. Each entry produces a launchd
-        agent (darwin) or systemd service (nixos) that runs
-        `limactl start --name=<name> <yaml>`. Provide either a pre-built
-        `yaml` path or an inline `guest` config; the orchestrator builds
-        the guest from `guest` if `yaml` is null.
+        VMs to orchestrate on this host. Each entry produces a launchd agent on
+        darwin or a systemd unit on nixos that runs a `limactl start` command.
+
+        The input for the command is either passed verbatim if `vms.*.yaml` is
+        not null, or it is given the string of a pre-built image, or it is built
+        entirely from an in-line `nixosSystem`.
       '';
       type = lib.types.attrsOf (
         lib.types.submodule (
@@ -38,6 +39,19 @@
                 '';
               };
 
+              image = lib.mkOption {
+                type = lib.types.nullOr lib.types.str;
+                default = null;
+                description = ''
+                  Image override: A string with URL or absolute path to a qcow2
+                  used as `images.*.location` in the Lima yaml.
+
+                  When set, this skips building an image and overrides whatever
+                  the inline `guest` config's `lima.image` says.  When null, the
+                  decision is deferred to the guest's own `lima.image`.
+                '';
+              };
+
               guest = lib.mkOption {
                 default = null;
                 description = ''
@@ -54,8 +68,8 @@
                         type = lib.types.listOf lib.types.unspecified;
                         default = [ ];
                         description = ''
-                          NixOS modules describing the guest. Merged on top
-                          of the Lima guest base (`options.nix` + `lima.nix`).
+                          NixOS modules describing the guest. Merged on top of
+                          the Lima guest base of `options.nix` and `lima.nix`.
                         '';
                       };
                     };
@@ -66,7 +80,7 @@
               autoStart = lib.mkOption {
                 type = lib.types.bool;
                 default = true;
-                description = "Start the VM at user login / boot.";
+                description = "Start the VM at login.";
               };
             };
           }

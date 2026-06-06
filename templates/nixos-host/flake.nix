@@ -28,6 +28,10 @@
               enable = true;
               vms.work-vm = {
                 autoStart = true;
+                # Optional: boot a prebuilt qcow2 (URL or local path) instead
+                # of building one. Overrides the inline guest's `lima.image`.
+                # For example:
+                # image = "https://example.com/nixos-base.qcow2";
                 guest = {
                   system = "x86_64-linux";
                   modules = [

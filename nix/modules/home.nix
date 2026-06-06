@@ -8,16 +8,9 @@ let
   prg = config.programs.limavm-nix;
   svc = config.services.limavm-nix;
 
-  mkGuestYaml = (import ../lib).mkGuestYaml;
-  yamlOf =
-    vm:
-    if vm.yaml != null then
-      vm.yaml
-    else
-      mkGuestYaml {
-        inherit pkgs;
-        inherit (vm.guest) system modules;
-      };
+  lima-lib = import ../lib { inherit lib; };
+
+  yamlOf = lima-lib.yamlOf { inherit pkgs; };
 
   prgCfg = lib.mkIf prg.enable {
     home.packages = [ svc.package ];

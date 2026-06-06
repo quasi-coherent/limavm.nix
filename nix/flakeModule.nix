@@ -12,50 +12,52 @@
 
     darwinModules = {
       default = self.darwinModules.lima;
-      lima = {
-        imports = [
-          ./modules/darwin.nix
-        ];
-      };
+      lima.imports = [
+        ./modules/darwin.nix
+      ];
     };
 
     flakeModules = {
-      den = {
-        imports = [
-          ./den
-          ./modules/den.nix
-        ];
-      };
-      home-manager = {
-        imports = [ ./modules/home.nix ];
-      };
+      den.imports = [
+        ./den
+        ./modules/den.nix
+      ];
+      home-manager.imports = [ ./modules/home.nix ];
     };
 
     nixosModules = {
       default = self.nixosModules.lima;
-      lima = {
-        imports = [
-          ./modules/nixos.nix
-        ];
-      };
+      lima.imports = [ ./modules/nixos.nix ];
+      guest.imports = [
+        ./options.nix
+        ./lima.nix
+      ];
     };
 
     templates = {
       flake-module = {
         path = ../templates/flake-module;
-        description = "Dendritic flake: den hosts/aspects with `toLima` + `limaGuests` batteries.";
+        description = "den hosts/aspects with `toLima` battery.";
       };
       nixos-host = {
         path = ../templates/nixos-host;
-        description = "Pure NixOS host + nixosSystem guest, no den, wired via nixosModules.host.";
+        description = "NixOS host + nixosSystem guest.";
       };
       darwin-host = {
         path = ../templates/darwin-host;
-        description = "Pure nix-darwin host + nixosSystem guest, no den, wired via darwinModules.host.";
+        description = "nix-darwin host + nixosSystem guest.";
       };
       ci = {
         path = ../templates/ci;
-        description = "Full-build smoke test: builds the qcow2 image and lima.yaml. Intended for CI, not local checks.";
+        description = "Smoke test, not intended for use.";
+      };
+      prebuilt-image = {
+        path = ../templates/prebuilt-image;
+        description = "Pre-built qcow2 disk image from URL/path with Lima.";
+      };
+      bootstrap = {
+        path = ../templates/bootstrap;
+        description = "Pre-built image with `nixosSystem` activated post-boot.";
       };
     };
   };

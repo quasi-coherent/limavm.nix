@@ -1,29 +1,26 @@
 {
-  coreutils,
-  callPackage,
+  pkgs,
+  lib,
   den,
   host,
-  lib,
-  lima,
-  writeShellApplication,
 }:
 let
   vmBuilt = host.instantiate {
     inherit (host) system;
     modules = [
+      ../options.nix
       ../lima.nix
       (den.lib.aspects.resolve host.class (den.lib.resolveEntity "host" { inherit host; }))
     ];
   };
-  limaYaml = vmBuilt.config.system.build.limaYaml;
+  guestCfg = vmBuilt.config.lima;
+  settings = vmBuilt.config.system.build.limaSettings;
+  image =
+    if builtins.isString guestCfg.image then guestCfg.image else vmBuilt.config.system.build.limaImage;
+  lima-lib = import ./. { inherit lib; };
 in
-callPackage ./limactl.nix {
-  inherit
-    coreutils
-    lib
-    lima
-    limaYaml
-    writeShellApplication
-    ;
+lima-lib.mkGuestPackages {
+  inherit pkgs settings image;
   name = host.name;
+  inherit (guestCfg) arch;
 }

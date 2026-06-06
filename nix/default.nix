@@ -3,6 +3,7 @@
   imports = [
     inputs.flake-parts.flakeModules.partitions
     ./flakeModule.nix
+    ./modules/base-image.nix
   ];
 
   partitionedAttrs.checks = "dev";

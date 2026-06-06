@@ -26,15 +26,12 @@
               map (
                 g:
                 lib.nameValuePair g.name {
-                  yaml =
-                    (g.instantiate {
-                      inherit (g) system;
-                      modules = [
-                        ../options.nix
-                        ../lima.nix
-                        (den.lib.aspects.resolve "nixos" (den.lib.resolveEntity "host" { host = g; }))
-                      ];
-                    }).config.system.build.limaYaml;
+                  guest = {
+                    inherit (g) system;
+                    modules = [
+                      (den.lib.aspects.resolve "nixos" (den.lib.resolveEntity "host" { host = g; }))
+                    ];
+                  };
                 }
               ) guests
             );

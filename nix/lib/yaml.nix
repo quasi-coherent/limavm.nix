@@ -35,21 +35,4 @@
     pkgs: name: value:
     (pkgs.formats.yaml { }).generate name value;
 
-  # Add the missing image sha to what we'd get from `mkLimaSettings`.
-  # That's the only thing it needs.
-  withImage =
-    settings:
-    {
-      arch,
-      imagePath,
-    }:
-    settings
-    // {
-      images = [
-        {
-          inherit arch;
-          location = imagePath;
-        }
-      ];
-    };
 }
