@@ -1,15 +1,18 @@
-_: {
+{ ... }:
+{
   flake.actions-nix.workflows =
     let
-      baseSteps = [
-        { uses = "actions/checkout@v6"; }
-        {
-          uses = "cachix/install-nix-action@v30";
-          "with" = {
-            nix_path = "nixpkgs=channel:nixos-unstable";
-          };
-        }
-      ];
+      checkout = {
+        uses = "actions/checkout@v6";
+      };
+
+      installNix = {
+        uses = "cachix/install-nix-action@v30";
+        "with" = {
+          nix_path = "nixpkgs=channel:nixos-unstable";
+        };
+      };
+
       cachixRead = [
         {
           uses = "cachix/cachix-action@v17";
@@ -26,6 +29,23 @@ _: {
             authToken = "\${{ secrets.CACHIX_AUTH_TOKEN }}";
           };
         }
+      ];
+      installNixKvm = {
+        uses = "cachix/install-nix-action@v30";
+        "with" = {
+          nix_path = "nixpkgs=channel:nixos-unstable";
+          extra_nix_config = "system-features = nixos-test benchmark big-parallel kvm";
+        };
+      };
+
+      baseSteps = [
+        checkout
+        installNix
+      ];
+
+      baseBuildSteps = [
+        checkout
+        installNixKvm
       ];
     in
     {
@@ -83,7 +103,7 @@ _: {
           ];
           runs-on = "\${{ matrix.runner }}";
           steps =
-            baseSteps
+            baseBuildSteps
             ++ cachixWrite
             ++ [
               {
