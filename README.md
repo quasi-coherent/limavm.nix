@@ -8,7 +8,7 @@ A flake for building and running [Lima]-managed VMs on macOS or Linux hosts.
 inputs.limavm.url = "github:quasi-coherent/limavm.nix";
 inputs.limavm.inputs.nixpkgs.follows = "nixpkgs";
 
-# WIP: To get the cached Lima base image.
+# To get the cached Lima base image:
 nixConfig = {
   extra-substituters = [ "https://limavm-nix.cachix.org" ];
   extra-trusted-public-keys = [
@@ -31,10 +31,11 @@ It also exposes `limavm-nix.packages.{sys}.lima-base-image` for
 aarch/x84 linux `sys`.
 
 This is a pre-built Lima disk image that a minimal nixOS VM can boot
-from.  `TODO(me)` pending, this `lima-base-image` is available from
-the public cachix cache `limavm-nix`.  Users who reference it directly
-or indirectly can enjoy avoiding lengthy image builds or having to
-build an image altogether.
+from.  It's available from the `limavm-nix` public cache hosted on
+cachix.  For a darwin host you have to use this cache to avoid having
+to build the image in cases where you're not specifying a URL or local
+qcow2 path for the base image, which would otherwise require extra
+setup.
 
 Each of the modules have different uses and requirements for
 different host systems.
@@ -109,10 +110,10 @@ MacOS users.
 ### Bootstrapped `nixosSystem`
 
 The module options expose `lima.bootstrap`, which can be used to build
-a custom `nixosConfigurations.<attr>` via
-`nixos-rebuild switch --flake` into the resulting Lima VM on first
-boot, obviating the need to build the disk image on the host to be able
-to merge custom nixos options:
+a custom `nixosConfigurations.<attr>` into the resulting Lima VM when
+it's first booting as a post-action that runs `nixos-rebuild`, rather
+than defining the boot image as the base plus custom extension.  This
+obviates the need to build any image on the host:
 
 ```nix
 flake.nixosConfigurations.myvm = nixpkgs.lib.nixosSystem {
@@ -187,11 +188,6 @@ den.aspects.vm.includes = [
 ```
 
 See the example [template](./templates/flake-module).
-
-## TODO
-
-1. Push `lima-base-image` to cachix as part of release CI so darwin
-   consumers don't trip the linux-builder.
 
 [Lima]: https://lima-vm.io/
 [detnix-linux]: https://discourse.nixos.org/t/determinate-nix-3-8-4-introducing-the-native-linux-builder-for-macos/67617
