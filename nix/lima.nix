@@ -26,11 +26,21 @@ in
       assertions =
         let
           rosettaHasAppleVz = (cfg.rosetta.enabled && cfg.vmType == "vz") || !cfg.rosetta.enabled;
+          serialConsole = if cfg.arch == "aarch64" then "ttyAMA0" else "ttyS0";
+          hasSerialConsole = lib.any (p: lib.hasPrefix "console=${serialConsole}" p) config.boot.kernelParams;
         in
         [
           {
             assertion = rosettaHasAppleVz;
             message = "`lima.rosetta.enabled = true` requires `lima.vmType` = \"vz\".";
+          }
+          {
+            assertion = hasSerialConsole;
+            message = ''
+              Lima needs a serial console kernel param (console=${serialConsole},115200)
+              to produce useful boot logs in $LIMA_HOME/<vm>/serial.log. The guest
+              module sets this by default but something in your config removed it.
+            '';
           }
         ];
     in
@@ -47,7 +57,6 @@ in
         };
       };
 
-      # Hard-coded nixosSystem options that Lima fails to boot without:
       nix.settings = {
         trusted-users = [ "@wheel" ];
         experimental-features = [
@@ -56,33 +65,33 @@ in
         ];
       };
 
-      services.openssh.enable = true;
-      security.sudo.wheelNeedsPassword = false;
-
-      boot = {
-        kernelParams = [
-          "console=tty0"
-          # Enable journal output to serial console because that's where the useful
-          # debugging logs go for QEMU ($LIMA_HOME/<vm>/serial.log).
-          (if cfg.arch == "aarch64" then "console=ttyAMA0,115200" else "console=ttyS0,115200")
-        ];
-        loader.grub = {
-          device = "nodev";
-          efiSupport = true;
-          efiInstallAsRemovable = true;
-        };
-      };
-
       environment.systemPackages = with pkgs; [
         sshfs
         fuse3
       ];
 
-      fileSystems."/" = {
+      services.openssh.enable = lib.mkDefault true;
+      security.sudo.wheelNeedsPassword = lib.mkDefault false;
+
+      boot.kernelParams = [
+        "console=tty0"
+        # Enable journal output to serial console because that's where the useful
+        # debugging logs go for QEMU ($LIMA_HOME/<vm>/serial.log).
+        (if cfg.arch == "aarch64" then "console=ttyAMA0,115200" else "console=ttyS0,115200")
+      ];
+
+      # Overriding these makes the disk unbootable.
+      boot.loader.grub.device = lib.mkForce "nodev";
+      boot.loader.grub.efiSupport = lib.mkForce true;
+      boot.loader.grub.efiInstallAsRemovable = lib.mkForce true;
+
+
+      # Overriding either breaks the VM.
+      fileSystems."/" = lib.mkForce {
         device = "/dev/disk/by-label/nixos";
         fsType = "ext4";
       };
-      fileSystems."${LIMA_CIDATA_MNT}" = {
+      fileSystems."${LIMA_CIDATA_MNT}" = lib.mkForce {
         device = "${LIMA_CIDATA_DEV}";
         fsType = "auto";
         options = [
@@ -98,7 +107,8 @@ in
       # Mostly adapted from:
       # https://github.com/lima-vm/alpine-lima/blob/ec4a135abbc8abecd21c2768e2bd7c260e11c6e9/lima-init.sh
       # https://github.com/nixos-lima/nixos-lima/blob/67bf50228688d79c98f6c0bc3a743dff2ce010bd/lima-init.nix
-      systemd.services.lima-init = {
+      # `mkForce` because nothing exists without it.
+      systemd.services.lima-init = lib.mkForce {
         description = "Lima cloud-init bootstrap";
         after = [
           "local-fs.target"
@@ -206,7 +216,7 @@ in
         '';
       };
 
-      systemd.services.lima-guestagent = {
+      systemd.services.lima-guestagent = lib.mkForce {
         description = "Lima guest agent";
         wantedBy = [ "multi-user.target" ];
         after = [ "lima-init.service" ];
@@ -241,63 +251,5 @@ in
         );
       };
 
-      # Define this always so that a plain base image gets the limactl runner
-      # like it would if there were a user-supplied bootstrap.
-      systemd.services.lima-bootstrap = {
-        description = "Lima bootstrap: nixos-rebuild into the consumer's flake";
-        after = [
-          "lima-init.service"
-          "network-online.target"
-        ];
-        requires = [ "lima-init.service" ];
-        wants = [ "network-online.target" ];
-        wantedBy = [ "multi-user.target" ];
-        unitConfig.ConditionPathExists = "/etc/lima-bootstrap/env";
-        serviceConfig = {
-          Type = "oneshot";
-          RemainAfterExit = true;
-          StandardOutput = "journal+console";
-          StandardError = "journal+console";
-        };
-        path = with pkgs; [
-          nixos-rebuild
-          git
-          coreutils
-          nix
-        ];
-        script = ''
-          set -eu
-          . /etc/lima-bootstrap/env
-          : "''${FLAKE:?}"
-          : "''${ATTR:?}"
-          MARKER="''${MARKER:-/var/lib/lima-bootstrap.done}"
-          if [ "''${RUN_ONCE:-true}" = "true" ] && [ -f "$MARKER" ]; then
-            echo "lima-bootstrap: already converged ($MARKER exists)"
-            exit 0
-          fi
-          nixos-rebuild switch --flake "$FLAKE#$ATTR"
-          mkdir -p "$(dirname "$MARKER")"
-          touch "$MARKER"
-        '';
-      };
-
-      # When the consumer has set `lima.bootstrap.flake`, emit a `provision`
-      # script to write the env file for the `lima-bootstrap` systemd unit.
-      # Has to be placed last in the list of `lima.provision.system` scripts so
-      # that any user-supplied ones run first.
-      lima.provision.system = lib.mkIf (cfg.bootstrap.flake != null) (
-        lib.mkAfter [
-          ''
-            set -eu
-            mkdir -p /etc/lima-bootstrap
-            cat > /etc/lima-bootstrap/env <<EOF
-            FLAKE=${cfg.bootstrap.flake}
-            ATTR=${cfg.bootstrap.attr}
-            MARKER=${cfg.bootstrap.markerFile}
-            RUN_ONCE=${if cfg.bootstrap.runOnce then "true" else "false"}
-            EOF
-          ''
-        ]
-      );
     };
 }

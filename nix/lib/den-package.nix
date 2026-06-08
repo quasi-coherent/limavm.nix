@@ -1,6 +1,5 @@
 {
   pkgs,
-  lib,
   den,
   host,
 }:
@@ -8,19 +7,19 @@ let
   vmBuilt = host.instantiate {
     inherit (host) system;
     modules = [
+      # Inject option definitions only so `config.lima.runner` is always
+      # readable. The user's `toLima` battery is what flips it to true and
+      # imports the rest of the guest module.
       ../options.nix
-      ../lima.nix
       (den.lib.aspects.resolve host.class (den.lib.resolveEntity "host" { inherit host; }))
     ];
   };
-  guestCfg = vmBuilt.config.lima;
-  settings = vmBuilt.config.system.build.limaSettings;
-  image =
-    if builtins.isString guestCfg.image then guestCfg.image else vmBuilt.config.system.build.limaImage;
-  lima-lib = import ./. { inherit lib; };
 in
-lima-lib.mkGuestPackages {
-  inherit pkgs settings image;
-  name = host.name;
-  inherit (guestCfg) arch;
-}
+if !vmBuilt.config.lima.runner then
+  null
+else
+  import ./mk-guest-packages.nix {
+    inherit pkgs;
+    name = host.name;
+    nixosSystem = vmBuilt;
+  }

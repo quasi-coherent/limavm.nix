@@ -28,7 +28,7 @@
               memory = "4GiB";
               vmType = "vz";
               # Prebuilt base image. URL or absolute path to a qcow2.
-              # Setting this as a string skips building an image — so no
+              # Setting this as a string skips building an image so no
               # Linux builder is required on the host.
               image = "https://example.com/nixos-base.qcow2";
             };
@@ -41,20 +41,17 @@
       perSystem =
         { pkgs, ... }:
         let
-          guest = inputs.self.nixosConfigurations.work-vm;
-          trio = inputs.limavm.lib.mkGuestPackages {
+          triple = inputs.limavm.lib.mkGuestPackages {
             inherit pkgs;
             name = "work-vm";
-            settings = guest.config.system.build.limaSettings;
-            image = guest.config.lima.image;
-            inherit (guest.config.lima) arch;
+            nixosSystem = inputs.self.nixosConfigurations.work-vm;
           };
         in
         {
           packages = {
             # `nix run .#work-vm -- start` boots the VM from the prebuilt qcow2.
-            work-vm = trio.start;
-            work-vm-yaml = trio.yaml;
+            work-vm = triple.start;
+            work-vm-yaml = triple.yaml;
           };
         };
     };

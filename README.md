@@ -109,13 +109,13 @@ MacOS users.
 
 ### Bootstrapped `nixosSystem`
 
-The module options expose `lima.bootstrap`, which can be used to build
-a custom `nixosConfigurations.<attr>` into the resulting Lima VM when
-it's first booting as a post-action that runs `nixos-rebuild`, rather
-than defining the boot image as the base plus custom extension.  This
-obviates the need to build any image on the host:
+`lib.mkBaseImageRunner` wraps `limactl` around the prebuilt generic base image
+and injects a script to `nixos-rebuild switch --flake $flake#$attr` on the first
+boot:
 
 ```nix
+# The nixosSystem the VM converges to. Must import nixosModules.guest so it's
+# a valid lima-bootable system standalone.
 flake.nixosConfigurations.myvm = nixpkgs.lib.nixosSystem {
   system = "aarch64-linux";
   modules = [
@@ -124,18 +124,21 @@ flake.nixosConfigurations.myvm = nixpkgs.lib.nixosSystem {
   ];
 };
 
-# Deployment: thin eval pins the base image and sets the bootstrap target to
-# `.#nixosConfigurations.myvm`.
-deployment = nixpkgs.lib.nixosSystem {
-  system = "aarch64-linux";
-  modules = [
-    limavm.nixosModules.guest
-    {
-      lima.image = "${limavm.packages.aarch64-linux.lima-base-image}/nixos.qcow2";
-      lima.mounts = [ { location = toString ./.; writable = false; } ];
-      lima.bootstrap = { flake = toString ./.; attr = "myvm"; };
-    }
-  ];
+
+perSystem = { pkgs, ... }: {
+  packages.myvm = (limavm.lib.mkBaseImageRunner {
+    inherit pkgs;
+    name = "myvm";
+    baseImage = "${limavm.packages.aarch64-linux.lima-base-image}/nixos.qcow2";
+    flake = toString ./.;
+    attr = "myvm";
+    settings = {
+      cpus = 4;
+      memory = "4GiB";
+      vmType = "vz";
+      mounts = [ { location = toString ./.; writable = false; } ];
+    };
+  }).start;
 };
 ```
 

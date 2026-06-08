@@ -10,16 +10,14 @@
   outputs =
     inputs:
     inputs.flake-parts.lib.mkFlake { inherit inputs; } {
-      # The two host systems we're going to build nixOS to target.
-      # You _can_ build and run `x86_64-linux` on darwin, but it's
-      # more complicated.
       systems = [
         "aarch64-darwin"
         "aarch64-linux"
       ];
 
-      # 1) The target: what the VM `nixos-rebuild`s after the first boot.
-      #    This can be arbitrary.
+      # The target nixosSystem the VM rebuilds into on first boot.
+      # Must import limavm.nixosModules.guest so that it's a valid lima-bootable
+      # system on its own.
       flake.nixosConfigurations.myvm = inputs.nixpkgs.lib.nixosSystem {
         system = "aarch64-linux";
         modules = [
@@ -40,53 +38,34 @@
         ];
       };
 
+      # `mkBaseImageRunner` is a wrapper around `limactl` for the base lima image
+      # that appends `nixos-rebuild switch --flake .#myvm`.
       perSystem =
-        let
-          # 2) The deployment: Small package that just pins the base image and sets
-          #    the bootstrap target.  Ultimately nothing (no image, at least) is
-          #    built on the host system.
-          deployment = inputs.nixpkgs.lib.nixosSystem {
-            system = "aarch64-linux";
-            modules = [
-              inputs.limavm.nixosModules.guest
-              {
-                lima = {
-                  enable = true;
-                  cpus = 4;
-                  memory = "4GiB";
-                  vmType = "vz";
-                  image = "${inputs.limavm.packages.aarch64-linux.lima-base-image}/nixos.qcow2";
-                  # Make the consumer's flake visible inside the VM so
-                  # nixos-rebuild can reach it.
-                  mounts = [
-                    {
-                      location = toString ./.;
-                      writable = false;
-                    }
-                  ];
-                  bootstrap = {
-                    flake = toString ./.;
-                    attr = "myvm";
-                  };
-                };
-              }
-            ];
-          };
-        in
         { pkgs, ... }:
         let
-          trio = inputs.limavm.lib.mkGuestPackages {
+          triple = inputs.limavm.lib.mkBaseImageRunner {
             inherit pkgs;
             name = "myvm";
-            settings = deployment.config.system.build.limaSettings;
-            image = deployment.config.lima.image;
-            inherit (deployment.config.lima) arch;
+            baseImage = "${inputs.limavm.packages.aarch64-linux.lima-base-image}/nixos.qcow2";
+            flake = toString ./.;
+            attr = "myvm";
+            settings = {
+              cpus = 4;
+              memory = "4GiB";
+              vmType = "vz";
+              mounts = [
+                {
+                  location = toString ./.;
+                  writable = false;
+                }
+              ];
+            };
           };
         in
         {
           packages = {
-            myvm = trio.start;
-            myvm-yaml = trio.yaml;
+            myvm = triple.start;
+            myvm-yaml = triple.yaml;
           };
         };
     };

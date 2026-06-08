@@ -15,11 +15,11 @@
     cpus = lib.mkDefault 2;
     memory = lib.mkDefault "2GiB";
     vmType = lib.mkDefault "vz";
-    # Headroom so the consumer's closure fits after `nixos-rebuild switch`.
+    # Adding headroom for a `nixos-rebuild switch`.
     image.additionalSpace = lib.mkDefault "8G";
   };
 
-  # Required for lima-bootstrap.service to do its job.
+  # Need this for the initial boot's rebuild.
   environment.systemPackages = with pkgs; [
     nixos-rebuild
     git

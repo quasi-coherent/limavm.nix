@@ -179,36 +179,6 @@
       '';
     };
 
-    bootstrap = {
-      flake = mkOption {
-        type = types.nullOr types.str;
-        default = null;
-        description = ''
-          Flake reference to rebuild into on first boot, e.g.
-          "/Users/me/dots" (with a matching `lima.mounts` entry) or
-          "github:me/dots". When null, no bootstrap rebuild is performed.
-        '';
-      };
-      attr = mkOption {
-        type = types.str;
-        default = "default";
-        description = "nixosConfigurations attribute name to rebuild into.";
-      };
-      runOnce = mkOption {
-        type = types.bool;
-        default = true;
-        description = ''
-          Skip the rebuild after the first successful run (marker file).
-          Set false to re-converge on every boot.
-        '';
-      };
-      markerFile = mkOption {
-        type = types.str;
-        default = "/var/lib/lima-bootstrap.done";
-        description = "Marker file written after a successful bootstrap rebuild.";
-      };
-    };
-
     rosetta.enabled = lib.mkEnableOption ''
       Whether Rosetta is available on the host to build x64 images.
       Requires MacOS > 13 host and the vmType to be "vz".

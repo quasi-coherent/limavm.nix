@@ -16,9 +16,15 @@
   # Resolve the final lima.yaml of a guest VM defined on a host.
   yamlOf = import ./yaml-of.nix;
 
-  # Bundle the three per-guest derivations: { image, yaml, start }. `image`
-  # is null when the image source is a prebuilt string ref.
+  # Bundle the three per-guest derivations from a nixosSystem that imports
+  # `nixosModules.guest`: { image, yaml, start }. `image` is null when the
+  # nixosSystem's `lima.image` is a string ref to a prebuilt qcow2.
   mkGuestPackages = import ./mk-guest-packages.nix;
+
+  # Bundle the same { image = null; yaml; start } trio, but for a prebuilt image
+  # that is rebuilt via `nixos-rebuild switch --flake $flake#$attr` on the first
+  # boot.
+  mkBaseImageRunner = import ./mk-base-image-runner.nix;
 
   # limactl wrapper pre-configured for an evaluated `options.lima`.
   limactl = ./limactl.nix;

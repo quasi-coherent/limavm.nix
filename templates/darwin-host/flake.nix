@@ -25,10 +25,10 @@
               vms.work-vm = {
                 autoStart = true;
                 # Optional: boot a prebuilt qcow2 (URL or local path) instead
-                # of building one. Overrides the inline guest's `lima.image`.
-                # For example:
-                # image = "https://example.com/nixos-base.qcow2";
-                #
+                # of building one, e.g.,
+                #   image = "https://example.com/nixos-base.qcow2";
+                # Overrides the inline guest's `lima.image`.
+
                 # Without this, the inline Lima guest has to be built on the
                 # _darwin_ host, which is not generally possible unless it has
                 # some tooling already in the environment, e.g., nix-darwin's

@@ -1,23 +1,24 @@
 {
   pkgs,
   name,
-  settings,
-  image,
-  arch,
+  nixosSystem,
 }:
 let
-  withImage = import ./with-image.nix;
-  yaml = withImage {
-    inherit pkgs image arch;
+  lima = nixosSystem.config.lima;
+  settings = nixosSystem.config.system.build.limaSettings;
+  image =
+    if builtins.isString lima.image then lima.image else nixosSystem.config.system.build.limaImage;
+  yaml = import ./with-image.nix {
+    inherit pkgs image;
+    inherit (lima) arch;
     name = "${name}-lima.yaml";
   } settings;
   start = pkgs.callPackage ./limactl.nix {
     limaYaml = yaml;
     inherit name;
   };
-  imageOut = if builtins.isString image then null else image;
 in
 {
-  image = imageOut;
+  image = if builtins.isString image then null else image;
   inherit yaml start;
 }

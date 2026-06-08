@@ -27,20 +27,22 @@ in
                 ;
             };
           in
-          [
-            {
-              name = host.name;
-              value = trio.start;
+          lib.optionals (trio != null) (
+            [
+              {
+                name = host.name;
+                value = trio.start;
+              }
+              {
+                name = "${host.name}-yaml";
+                value = trio.yaml;
+              }
+            ]
+            ++ lib.optional (trio.image != null) {
+              name = "${host.name}-image";
+              value = trio.image;
             }
-            {
-              name = "${host.name}-yaml";
-              value = trio.yaml;
-            }
-          ]
-          ++ lib.optional (trio.image != null) {
-            name = "${host.name}-image";
-            value = trio.image;
-          }
+          )
         ) hostsList
       );
     };

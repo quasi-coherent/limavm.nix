@@ -5,7 +5,6 @@
   ...
 }:
 {
-  # With den.
   den.hosts.aarch64-linux.lima-check-vm = { };
 
   den.aspects.lima-check-vm.includes = [
@@ -74,7 +73,6 @@
         let
           lima-lib = import ./lib { inherit lib; };
 
-          # Cheap plain NixOS guest eval (no den).
           plainCfg = inputs.nixpkgs.lib.nixosSystem {
             system = "aarch64-linux";
             modules = [
@@ -88,9 +86,7 @@
             ];
           };
 
-          # Same as plainCfg but with a prebuilt image string set — exercises
-          # the conditional `limaImage` (it should NOT be defined here) and
-          # the withImage code path.
+          # Same as plainCfg but with a prebuilt image string set.
           prebuiltCfg = inputs.nixpkgs.lib.nixosSystem {
             system = "aarch64-linux";
             modules = [
@@ -105,7 +101,7 @@
             ];
           };
 
-          # Den path: same shape but routed through the toLima battery.
+          # Same shape but routed through the toLima battery.
           denHost = den.hosts.aarch64-linux.lima-check-vm;
           denCfg = denHost.instantiate {
             inherit (denHost) system;
@@ -128,51 +124,31 @@
           # Image-less YAML, den path.
           lima-runner-eval = denCfg.config.system.build.evalYaml;
 
-          # withImage applied with a prebuilt string ref. Does NOT trigger
-          # any image build because the ref is a literal string.
+          # withImage applied with a prebuilt image.
           lima-plain-withImage-prebuilt = mkWithImage prebuiltCfg prebuiltCfg.config.lima.image;
 
-          # Same but going through the den battery, with a string image
-          # override supplied at withImage call time (the den config itself
-          # doesn't set lima.image).
+          # Same but going through the den battery.
           lima-runner-withImage-prebuilt = mkWithImage denCfg "https://example.invalid/base.qcow2";
 
-          # Smoke check that mkGuestPackages's start wrapper builds.
+          # mkGuestPackages' start wrapper should build.
           lima-start-wrapper-prebuilt =
             (lima-lib.mkGuestPackages {
               inherit pkgs;
               name = "check-start";
-              settings = prebuiltCfg.config.system.build.limaSettings;
-              image = prebuiltCfg.config.lima.image;
-              inherit (prebuiltCfg.config.lima) arch;
+              nixosSystem = prebuiltCfg;
             }).start;
 
-          # Bootstrap path: setting `lima.bootstrap.flake` should emit a
-          # provision script that writes /etc/lima-bootstrap/env. We build
-          # the evalYaml of a config that sets both image (string) and
-          # bootstrap.flake — confirms option resolution and provision wiring
-          # render cleanly without triggering an image build.
-          lima-bootstrap-eval =
-            let
-              bootstrapCfg = inputs.nixpkgs.lib.nixosSystem {
-                system = "aarch64-linux";
-                modules = [
-                  ./options.nix
-                  ./lima.nix
-                  {
-                    lima.enable = true;
-                    lima.image = "https://example.invalid/base.qcow2";
-                    lima.bootstrap.flake = "/fake/path/to/flake";
-                    lima.bootstrap.attr = "myvm";
-                    users.users.root.password = "";
-                    system.stateVersion = "26.05";
-                  }
-                ];
-              };
-            in
-            bootstrapCfg.config.system.build.evalYaml;
+          # Check it renders without evaluating.
+          lima-base-image-runner =
+            (lima-lib.mkBaseImageRunner {
+              inherit pkgs;
+              name = "check-base-runner";
+              baseImage = "https://example.invalid/base.qcow2";
+              flake = "/fake/path/to/flake";
+              attr = "myvm";
+            }).start;
 
-          # postBoot option: setting it shouldn't break evalYaml rendering.
+          # Shouldn't break yaml.
           lima-postBoot-eval =
             let
               postBootCfg = inputs.nixpkgs.lib.nixosSystem {
