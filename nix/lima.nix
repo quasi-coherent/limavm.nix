@@ -26,7 +26,13 @@ in
       assertions =
         let
           rosettaHasAppleVz = (cfg.rosetta.enabled && cfg.vmType == "vz") || !cfg.rosetta.enabled;
-          serialConsole = if cfg.arch == "aarch64" then "ttyAMA0" else "ttyS0";
+          serialConsole =
+            if cfg.vmType == "vz" then
+              "hvc0"
+            else if cfg.arch == "aarch64" then
+              "ttyAMA0"
+            else
+              "ttyS0";
           hasSerialConsole = lib.any (p: lib.hasPrefix "console=${serialConsole}" p) config.boot.kernelParams;
         in
         [
@@ -85,9 +91,16 @@ in
 
       boot.kernelParams = [
         "console=tty0"
-        # Enable journal output to serial console because that's where the useful
-        # debugging logs go for QEMU ($LIMA_HOME/<vm>/serial.log).
-        (if cfg.arch == "aarch64" then "console=ttyAMA0,115200" else "console=ttyS0,115200")
+        # Enable journal output to the serial console lima captures in
+        # $LIMA_HOME/<vm>/serial.log.
+        (
+          if cfg.vmType == "vz" then
+            "console=hvc0"
+          else if cfg.arch == "aarch64" then
+            "console=ttyAMA0,115200"
+          else
+            "console=ttyS0,115200"
+        )
       ];
 
       # Overriding these makes the disk unbootable.

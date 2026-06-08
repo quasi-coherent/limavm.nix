@@ -5,6 +5,7 @@
 }:
 ''
   set -eu
+  export PATH=/run/current-system/sw/bin:$PATH
   MARKER=${marker}
   if [ -f "$MARKER" ]; then
     echo "lima-bootstrap: already converged ($MARKER)"
