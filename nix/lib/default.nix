@@ -26,6 +26,10 @@
   # boot.
   mkBaseImageRunner = import ./mk-base-image-runner.nix;
 
+  # Rebuild-on-first-boot shell script for the bootstrap path. Used by the
+  # guest module (via `lima.bootstrap`) and by `mkBaseImageRunner`.
+  mkBootstrapScript = import ./mk-bootstrap-script.nix;
+
   # limactl wrapper pre-configured for an evaluated `options.lima`.
   limactl = ./limactl.nix;
 

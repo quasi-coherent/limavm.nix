@@ -35,6 +35,10 @@ in
             message = "`lima.rosetta.enabled = true` requires `lima.vmType` = \"vz\".";
           }
           {
+            assertion = (cfg.bootstrap.flake == null) == (cfg.bootstrap.attr == null);
+            message = "`lima.bootstrap.flake` and `lima.bootstrap.attr` must be set together.";
+          }
+          {
             assertion = hasSerialConsole;
             message = ''
               Lima needs a serial console kernel param (console=${serialConsole},115200)
@@ -73,6 +77,12 @@ in
       services.openssh.enable = lib.mkDefault true;
       security.sudo.wheelNeedsPassword = lib.mkDefault false;
 
+      lima.provision.system = lib.mkIf (cfg.bootstrap.flake != null) [
+        (lima-lib.mkBootstrapScript {
+          inherit (cfg.bootstrap) flake attr marker;
+        })
+      ];
+
       boot.kernelParams = [
         "console=tty0"
         # Enable journal output to serial console because that's where the useful
@@ -84,7 +94,6 @@ in
       boot.loader.grub.device = lib.mkForce "nodev";
       boot.loader.grub.efiSupport = lib.mkForce true;
       boot.loader.grub.efiInstallAsRemovable = lib.mkForce true;
-
 
       # Overriding either breaks the VM.
       fileSystems."/" = lib.mkForce {

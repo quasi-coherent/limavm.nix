@@ -21,7 +21,6 @@ in
             trio = import ../lib/den-package.nix {
               inherit
                 pkgs
-                lib
                 den
                 host
                 ;

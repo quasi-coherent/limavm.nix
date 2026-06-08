@@ -9,17 +9,9 @@
   marker ? "/var/lib/lima-bootstrap.done",
 }:
 let
-  rebuildScript = ''
-    set -eu
-    MARKER=${marker}
-    if [ -f "$MARKER" ]; then
-      echo "lima-base-runner: already converged ($MARKER)"
-      exit 0
-    fi
-    nixos-rebuild switch --flake "${flake}#${attr}"
-    mkdir -p "$(dirname "$MARKER")"
-    touch "$MARKER"
-  '';
+  rebuildScript = import ./mk-bootstrap-script.nix {
+    inherit flake attr marker;
+  };
   finalSettings = settings // {
     provision = (settings.provision or [ ]) ++ [
       {

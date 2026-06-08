@@ -179,6 +179,29 @@
       '';
     };
 
+    bootstrap = {
+      flake = mkOption {
+        type = types.nullOr types.str;
+        default = null;
+        description = ''
+          Flake reference whose `nixosConfigurations.<attr>` the guest should
+          converge to on first boot. When set, the guest module appends a
+          `nixos-rebuild switch --flake $flake#$attr` to `lima.provision.system`,
+          guarded by a marker file so it runs once.
+        '';
+      };
+      attr = mkOption {
+        type = types.nullOr types.str;
+        default = null;
+        description = "Attribute under `nixosConfigurations` in `lima.bootstrap.flake`.";
+      };
+      marker = mkOption {
+        type = types.str;
+        default = "/var/lib/lima-bootstrap.done";
+        description = "Marker file used to make the rebuild run-once.";
+      };
+    };
+
     rosetta.enabled = lib.mkEnableOption ''
       Whether Rosetta is available on the host to build x64 images.
       Requires MacOS > 13 host and the vmType to be "vz".
