@@ -4,19 +4,6 @@ A flake for building and running [Lima]-managed VMs on macOS or Linux hosts.
 
 ## Usage
 
-```nix
-inputs.limavm.url = "github:quasi-coherent/limavm.nix";
-inputs.limavm.inputs.nixpkgs.follows = "nixpkgs";
-
-# To get the cached Lima base image:
-nixConfig = {
-  extra-substituters = [ "https://limavm-nix.cachix.org" ];
-  extra-trusted-public-keys = [
-    "limavm-nix.cachix.org-1:3tRE+cBpLSZlcb6Mjgxjif+QCG6mJXuDyjyMHHXgx8I="
-  ];
-};
-```
-
 The flake exposes the conventional modules:
 
 Import | Runs guests via
@@ -36,6 +23,22 @@ cachix.  For a darwin host you have to use this cache to avoid having
 to build the image in cases where you're not specifying a URL or local
 qcow2 path for the base image, which would otherwise require extra
 setup.
+
+First, add the following to your flake.nix:
+
+```nix
+inputs.limavm.url = "github:quasi-coherent/limavm.nix";
+# You _don't_ want this if hoping for a cache hit for the base Lima image:
+# inputs.limavm.inputs.nixpkgs.follows = "nixpkgs";
+
+# But you do want this:
+nixConfig = {
+  extra-substituters = [ "https://limavm-nix.cachix.org" ];
+  extra-trusted-public-keys = [
+    "limavm-nix.cachix.org-1:3tRE+cBpLSZlcb6Mjgxjif+QCG6mJXuDyjyMHHXgx8I="
+  ];
+};
+```
 
 Each of the modules have different uses and requirements for
 different host systems.
