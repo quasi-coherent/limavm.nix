@@ -138,16 +138,6 @@
               nixosSystem = prebuiltCfg;
             }).start;
 
-          # Check it renders without evaluating.
-          lima-base-image-runner =
-            (lima-lib.mkBaseImageRunner {
-              inherit pkgs;
-              name = "check-base-runner";
-              baseImage = "https://example.invalid/base.qcow2";
-              flake = "/fake/path/to/flake";
-              attr = "myvm";
-            }).start;
-
           # Shouldn't break yaml.
           lima-postBoot-eval =
             let

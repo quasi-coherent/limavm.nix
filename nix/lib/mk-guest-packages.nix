@@ -2,6 +2,9 @@
   pkgs,
   name,
   nixosSystem,
+  # `nixosConfigurations.<attr>` <--> `nixos-rebuild switch --flake .#<attr>`
+  # If this is null, just use the pre-built image.
+  guestSystem ? name,
 }:
 let
   lima = nixosSystem.config.lima;
@@ -15,7 +18,8 @@ let
   } settings;
   start = pkgs.callPackage ./limactl.nix {
     limaYaml = yaml;
-    inherit name;
+    inherit name guestSystem;
+    inherit (lima) limaHomeDir;
   };
 in
 {

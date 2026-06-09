@@ -55,10 +55,6 @@
         path = ../templates/prebuilt-image;
         description = "Pre-built qcow2 disk image from URL/path with Lima.";
       };
-      bootstrap = {
-        path = ../templates/bootstrap;
-        description = "Pre-built image with `nixosSystem` activated post-boot.";
-      };
     };
   };
 }

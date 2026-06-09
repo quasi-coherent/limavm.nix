@@ -179,33 +179,21 @@
       '';
     };
 
-    bootstrap = {
-      flake = mkOption {
-        type = types.nullOr types.str;
-        default = null;
-        description = ''
-          Flake reference whose `nixosConfigurations.<attr>` the guest should
-          converge to on first boot. When set, the guest module appends a
-          `nixos-rebuild switch --flake $flake#$attr` to `lima.provision.system`,
-          guarded by a marker file so it runs once.
-        '';
-      };
-      attr = mkOption {
-        type = types.nullOr types.str;
-        default = null;
-        description = "Attribute under `nixosConfigurations` in `lima.bootstrap.flake`.";
-      };
-      marker = mkOption {
-        type = types.str;
-        default = "/var/lib/lima-bootstrap.done";
-        description = "Marker file used to make the rebuild run-once.";
-      };
-    };
-
     rosetta.enabled = lib.mkEnableOption ''
       Whether Rosetta is available on the host to build x64 images.
       Requires MacOS > 13 host and the vmType to be "vz".
     '';
+
+    limaHomeDir = mkOption {
+      type = types.str;
+      default = "$HOME/.lima";
+      description = ''
+        Host-side directory where Lima stores per-instance state. Baked into the
+        `start`/`rebuild` wrapper as the default for `$LIMA_HOME`; the user's
+        env var still wins at runtime. Default matches Lima's darwin default;
+        Linux users may want `"$XDG_CONFIG_HOME/lima"`.
+      '';
+    };
 
     runner = mkOption {
       type = types.bool;

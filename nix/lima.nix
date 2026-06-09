@@ -41,10 +41,6 @@ in
             message = "`lima.rosetta.enabled = true` requires `lima.vmType` = \"vz\".";
           }
           {
-            assertion = (cfg.bootstrap.flake == null) == (cfg.bootstrap.attr == null);
-            message = "`lima.bootstrap.flake` and `lima.bootstrap.attr` must be set together.";
-          }
-          {
             assertion = hasSerialConsole;
             message = ''
               Lima needs a serial console kernel param (console=${serialConsole},115200)
@@ -83,12 +79,6 @@ in
       services.openssh.enable = lib.mkDefault true;
       security.sudo.wheelNeedsPassword = lib.mkDefault false;
 
-      lima.provision.system = lib.mkIf (cfg.bootstrap.flake != null) [
-        (lima-lib.mkBootstrapScript {
-          inherit (cfg.bootstrap) flake attr marker;
-        })
-      ];
-
       boot.kernelParams = [
         "console=tty0"
         # Enable journal output to the serial console lima captures in
@@ -126,10 +116,9 @@ in
         ];
       };
 
-      # Mostly adapted from:
+      # `mkForce` because nothing exists without it. Mostly adapted from:
       # https://github.com/lima-vm/alpine-lima/blob/ec4a135abbc8abecd21c2768e2bd7c260e11c6e9/lima-init.sh
       # https://github.com/nixos-lima/nixos-lima/blob/67bf50228688d79c98f6c0bc3a743dff2ce010bd/lima-init.nix
-      # `mkForce` because nothing exists without it.
       systemd.services.lima-init = lib.mkForce {
         description = "Lima cloud-init bootstrap";
         after = [
@@ -160,12 +149,11 @@ in
           if [ -f ${LIMA_CIDATA_MNT}/lima.env ]; then
               echo "storage exists";
           else
-              echo "storage not exists";
+              echo "storage does not exist";
               exit 2
           fi
 
-          # Source lima.env defensively: values can contain spaces, so we
-          # can't just `. lima.env`.
+          # Can't just `. lima.env` because it can contain spaces.
           while IFS= read -r line; do export "$line"; done < "${LIMA_CIDATA_MNT}/lima.env"
 
           : "''${LIMA_CIDATA_USER:?}"
@@ -216,8 +204,8 @@ in
           chown "$LIMA_CIDATA_USER:$LIMA_CIDATA_USER" "$SSHDIR/authorized_keys"
           chmod 600 "$SSHDIR/authorized_keys"
 
-          # Belt-and-braces: also drop a copy in /etc/ssh/authorized_keys.d
-          # so an admin-set AuthorizedKeysFile picks it up regardless of $HOME.
+          # Also copy to /etc/ssh/authorized_keys.d so an admin's AuthorizedKeysFile
+          # picks it up regardless of $HOME.
           install -d -m 755 /etc/ssh/authorized_keys.d
           install -m 644 "$SSHDIR/authorized_keys" \
             "/etc/ssh/authorized_keys.d/$LIMA_CIDATA_USER"
@@ -230,8 +218,6 @@ in
             done
           fi
 
-          # Lima ≥2.1 readiness signal: the IID goes INTO these files, not
-          # into their filename. Lima polls both before declaring the VM up.
           : "''${LIMA_CIDATA_IID:=unknown}"
           printf '%s\n' "$LIMA_CIDATA_IID" > /run/lima-boot-done
           printf '%s\n' "$LIMA_CIDATA_IID" > /run/lima-ssh-ready

@@ -4,10 +4,9 @@
   ...
 }:
 {
-  # Needs to be here to register as a class with the den pipeline.
+  # For registration with den's resolution pipeline.
   den.classes.lima.description = "Lima VM guest configuration";
 
-  # Run each entry as a Lima guest on the including host.
   den.batteries.limaGuests = {
     description = "Run a list of den hosts as Lima guests on this host.";
     __functor =
@@ -40,8 +39,6 @@
       };
   };
 
-  # Expose the including host as a Lima guest via at the package
-  # `flake.packages.<runnerSys>.<host.name>`.
   den.batteries.toLima = {
     description = "Expose this host as a runnable Lima guest (flake.packages.<sys>.<name>).";
     __functor =
