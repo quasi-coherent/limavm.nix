@@ -87,7 +87,7 @@
 
       ".github/workflows/base-image.yaml" = {
         on = {
-          schedule = [ { cron = "0 0 * * 0"; } ];
+          schedule = [ { cron = "0 0 * * *"; } ];
           workflow_dispatch = { };
         };
         jobs.build-base-image = {
