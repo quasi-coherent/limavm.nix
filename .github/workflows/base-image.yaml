@@ -16,8 +16,20 @@ jobs:
       with:
         authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
         name: limavm-nix
+    - name: Update flake inputs
+      run: |-
+        nix flake update
+        git commit -m "Updated flake inputs" flake.lock || true
+    - name: Configure git
+      run: |-
+        git config user.name github-actions
+        git config user.email github-actions@github.com
     - name: Build lima-base-image
       run: nix -Lv build .#packages.${{ matrix.system }}.lima-base-image
+    - name: Push with update
+      run: |-
+        git pull --rebase --autostash
+        git push
     strategy:
       matrix:
         include:

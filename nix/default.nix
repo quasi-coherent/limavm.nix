@@ -1,11 +1,10 @@
 { inputs, ... }:
 {
   imports = [
-    inputs.actions-nix.flakeModules.default
     inputs.flake-parts.flakeModules.partitions
-    ./ci
     ./flakeModule.nix
     ./modules/base-image.nix
+    # ./private/actions.nix
   ];
 
   partitionedAttrs.checks = "dev";
@@ -20,7 +19,7 @@
         inputs.treefmt-nix.flakeModule
         ./den
         ./modules/den.nix
-        ./private.nix
+        ./private
       ];
     };
 }

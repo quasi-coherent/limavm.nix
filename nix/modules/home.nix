@@ -8,19 +8,34 @@ let
   prg = config.programs.limavm-nix;
   svc = config.services.limavm-nix;
 
-  lima-lib = import ../lib { inherit lib; };
-
-  yamlOf = lima-lib.yamlOf { inherit pkgs; };
+  yamlOf = import ../yaml-of.nix {
+    inherit pkgs lib;
+    hostSystem = pkgs.stdenv.hostPlatform.system;
+  };
 
   prgCfg = lib.mkIf prg.enable {
     home.packages = [ svc.package ];
   };
+
+  limaHome = svc.limaHomeDir;
+  envLimaHome = lib.optionalAttrs (limaHome != null) { LIMA_HOME = limaHome; };
+  mkdirHome = lib.optionalString (
+    limaHome != null
+  ) "${pkgs.coreutils}/bin/mkdir -p ${lib.escapeShellArg limaHome} && ";
+
+  launchdShim =
+    vm:
+    pkgs.writeShellScript "lima-${vm.name}-launchd" ''
+      ${mkdirHome}exec ${svc.package}/bin/limactl start --tty=false --name=${vm.name} ${yamlOf vm}
+    '';
 
   svcCfg = lib.mkIf svc.enable {
     assertions = lib.mapAttrsToList (n: vm: {
       assertion = (vm.yaml == null) != (vm.guest == null);
       message = "services.limavm-nix.vms.${n}: set exactly one of `yaml` or `guest`.";
     }) svc.vms;
+
+    services.limavm-nix.limaHomeDir = lib.mkDefault "${config.home.homeDirectory}/.lima";
 
     systemd.user.services = lib.mapAttrs' (_: vm: {
       name = "lima-${vm.name}";
@@ -30,6 +45,10 @@ let
         Install.After = [ "network.target" ];
         Service = {
           Type = "simple";
+          Environment = lib.mapAttrsToList (k: v: "${k}=${v}") envLimaHome;
+          ExecStartPre = lib.optional (
+            limaHome != null
+          ) "${pkgs.coreutils}/bin/mkdir -p ${lib.escapeShellArg limaHome}";
           ExecStart = "${svc.package}/bin/limactl start --tty=false --name=${vm.name} ${yamlOf vm}";
           ExecStop = "${svc.package}/bin/limactl stop ${vm.name}";
           Restart = "on-failure";
@@ -43,13 +62,8 @@ let
         config = {
           enable = true;
           Label = "lima-${vm.name}";
-          ProgramArguments = [
-            "${svc.package}/bin/limactl"
-            "start"
-            "--tty=false"
-            "--name=${vm.name}"
-            "${yamlOf vm}"
-          ];
+          ProgramArguments = [ "${launchdShim vm}" ];
+          EnvironmentVariables = envLimaHome;
           RunAtLoad = vm.autoStart;
           KeepAlive = vm.autoStart;
           StandardOutPath = "/tmp/lima-${vm.name}.log";

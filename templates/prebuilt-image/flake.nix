@@ -24,9 +24,11 @@
           {
             lima = {
               enable = true;
-              cpus = 4;
-              memory = "4GiB";
-              vmType = "vz";
+              runner = {
+                cpus = 4;
+                memory = "4GiB";
+                vmType = "vz";
+              };
               # Prebuilt base image. URL or absolute path to a qcow2.
               # Setting this as a string skips building an image so no
               # Linux builder is required on the host.
@@ -41,7 +43,7 @@
       perSystem =
         { pkgs, ... }:
         let
-          triple = inputs.limavm.lib.mkGuestPackages {
+          triple = inputs.limavm.lib.limavmPackages {
             inherit pkgs;
             name = "work-vm";
             nixosSystem = inputs.self.nixosConfigurations.work-vm;

@@ -23,9 +23,11 @@
           {
             lima = {
               enable = true;
-              cpus = 2;
-              memory = "2GiB";
-              vmType = "qemu";
+              runner = {
+                cpus = 2;
+                memory = "2GiB";
+                vmType = "qemu";
+              };
             };
             users.users.root.password = "";
             system.stateVersion = "26.05";
@@ -43,10 +45,22 @@
           guest = inputs.self.nixosConfigurations.ci-guest;
           image = guest.config.system.build.limaImage;
 
-          lima-yaml = inputs.limavm.lib.withImage {
-            inherit pkgs image;
-            inherit (guest.config.lima) arch;
-          } guest.config.system.build.limaSettings;
+          lima-yaml =
+            let
+              settings = guest.config.system.build.limaSettings;
+              location = "${image}/nixos.qcow2";
+            in
+            (pkgs.formats.yaml { }).generate "lima.yaml" (
+              settings
+              // {
+                images = [
+                  {
+                    inherit (guest.config.lima.runner) arch;
+                    inherit location;
+                  }
+                ];
+              }
+            );
         in
         {
           packages = {

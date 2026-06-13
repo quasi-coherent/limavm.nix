@@ -1,8 +1,5 @@
 {
-  description = "Lima VM modules using the den framework";
-  inputs.actions-nix.url = "github:nialov/actions.nix";
-  inputs.actions-nix.inputs.nixpkgs.follows = "nixpkgs";
-  inputs.actions-nix.inputs.flake-parts.follows = "flake-parts";
+  description = "Modules for building NixOS VMs with Lima";
   inputs.flake-parts.url = "github:hercules-ci/flake-parts";
   inputs.flake-parts.inputs.nixpkgs-lib.follows = "nixpkgs-lib";
   inputs.nixpkgs.url = "https://channels.nixos.org/nixos-unstable/nixexprs.tar.xz";

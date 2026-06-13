@@ -10,6 +10,32 @@
       description = "The `limactl` package used by the orchestrator.";
     };
 
+    user = lib.mkOption {
+      type = lib.types.nullOr lib.types.str;
+      default = null;
+      description = ''
+        Username whose home directory roots the default `limaHomeDir` on
+        nix-darwin and NixOS hosts. Ignored when the option is consumed via
+        home-manager (which uses `config.home.homeDirectory` directly). When
+        null, no `limaHomeDir` default is supplied and `limactl` falls back
+        to its own per-OS default at runtime.
+      '';
+    };
+
+    limaHomeDir = lib.mkOption {
+      type = lib.types.nullOr lib.types.str;
+      default = null;
+      description = ''
+        Host-side directory where Lima stores per-instance state.
+
+        Default:
+        - home-manager: `"''${config.home.homeDirectory}/.lima"`.
+        - nix-darwin / NixOS: derived from `services.limavm-nix.user` if set;
+          otherwise null.
+        - When null, defers to `limactl`.
+      '';
+    };
+
     vms = lib.mkOption {
       default = { };
       description = ''
@@ -56,20 +82,23 @@
                 default = null;
                 description = ''
                   Inline NixOS guest definition. Set this OR `yaml`, not both.
+
+                  The guest system is derived from the host: a linux host
+                  produces a same-arch linux guest; a darwin host produces the
+                  matching linux guest (aarch64-darwin → aarch64-linux,
+                  x86_64-darwin → x86_64-linux). On aarch64-darwin, setting
+                  `lima.runner.rosetta.isEnabled = true` in the guest modules
+                  switches the guest to x86_64-linux (run via Rosetta).
                 '';
                 type = lib.types.nullOr (
                   lib.types.submodule {
                     options = {
-                      system = lib.mkOption {
-                        type = lib.types.str;
-                        description = "Guest system, e.g. \"aarch64-linux\".";
-                      };
                       modules = lib.mkOption {
                         type = lib.types.listOf lib.types.unspecified;
                         default = [ ];
                         description = ''
                           NixOS modules describing the guest. Merged on top of
-                          the Lima guest base of `options.nix` and `lima.nix`.
+                          the Lima guest base of `lima.nix`.
                         '';
                       };
                     };

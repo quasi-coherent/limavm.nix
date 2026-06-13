@@ -5,33 +5,12 @@ macOS or Linux hosts.
 
 ## Usage
 
-The conventional flake modules are exposed:
-
-Import | Runs guests via
-:---: | :---
-`darwinModules` | `launchd.user.agents`
-`nixosModules` | `systemd.services`
-`nixosModules.guest` | `limavm.lib.mkGuestPackages`
-`flakeModules.home-manager` | `launchd` or `systemd`
-`flakeModules.den` | `packages.{sys}.{vm}-*`, see [below](#den-integration)
-
-It also exposes `limavm-nix.packages.{sys}.lima-base-image` for `sys` equal to
-`aarch64-linux` or `x86_64-linux`.
-
-This is a pre-built Lima disk image that a minimal nixOS VM can boot from.  It's
-available from the `limavm-nix` public cache hosted on cachix.  For a darwin
-host you have to use this cache to avoid having to build the image in cases
-where you're not specifying a URL or local qcow2 path for the base image, which
-would otherwise require extra setup.
-
 First, add the following to your flake.nix:
 
 ```nix
 inputs.limavm.url = "github:quasi-coherent/limavm.nix";
-# You _don't_ want this if hoping for a cache hit for the base Lima image:
-# inputs.limavm.inputs.nixpkgs.follows = "nixpkgs";
 
-# But you do want this:
+# For cached image sources:
 nixConfig = {
   extra-substituters = [ "https://limavm-nix.cachix.org" ];
   extra-trusted-public-keys = [
@@ -39,6 +18,25 @@ nixConfig = {
   ];
 };
 ```
+
+This flake exposes the conventional modules:
+
+Import | Runs guests via
+:---: | :---
+`darwinModules` | `launchd.user.agents`
+`nixosModules` | `systemd.services`
+`nixosModules.guest` | `limavm.lib.limavmPackages` (or `limavm.lib.mkLimaGuest`)
+`flakeModules.home-manager` | `launchd` or `systemd`
+`flakeModules.den` | `packages.{sys}.{vm}-*`, see [below](#den-integration)
+
+It also exposes `limavm.packages.{sys}.lima-base-image` for `sys` equal to
+`aarch64-linux` or `x86_64-linux`.
+
+This is a pre-built Lima disk image that a minimal nixOS VM can boot from.  It's
+available from the `limavm-nix` public cache hosted on cachix.  For a darwin
+host you have to use this cache to avoid having to build the image in cases
+where you're not specifying a URL or local qcow2 path for the base image, which
+would otherwise require extra setup.
 
 Each of the modules have different uses and requirements for different host
 systems.
@@ -80,14 +78,13 @@ this.  This can also be a store path to, e.g., this flake's
 flake.darwinConfigurations.macbook-pro = inputs.darwin.lib.darwinSystem {
   system = "aarch64-darwin";
   modules = [
-    inputs.limavm.darwinModules
+    inputs.limavm.darwinModules.default
     {
       system.stateVersion = 5;
       services.limavm-nix = {
         enable = true;
         vms.work-vm = {
           autoStart = true;
-          guest.system = "aarch64-linux";
           guest.modules = [
             {
               lima.enable = true;
@@ -117,17 +114,22 @@ den.aspects.my-darwin-host.includes = [
   ])
 ];
 
-# `toLima` accepts the full `options.lima` tree and outputs a `packages.<vm>`
-# for each of the image, yaml, and `limactl` wrapper.
+# `toLimaGuest` is argument-less; it reads `lima`-class content from the
+# host's aspects and outputs a `packages.<sys>.<vm>` (start wrapper),
+# `<vm>-yaml`, and `<vm>-image` (when built locally).
 den.aspects.vm.includes = [
   den.aspects.editor
   den.aspects.cli-tools
-  (den.batteries.toLima {
+  den.batteries.toLimaGuest
+];
+
+den.aspects.vm.lima = {
+  lima.runner = {
     cpus = 4;
     memory = "8GiB";
     vmType = "vz";
-  })
-];
+  };
+};
 ```
 
 See the example [template](./templates/flake-module).

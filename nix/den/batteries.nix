@@ -25,12 +25,10 @@
               map (
                 g:
                 lib.nameValuePair g.name {
-                  guest = {
-                    inherit (g) system;
-                    modules = [
-                      (den.lib.aspects.resolve "nixos" (den.lib.resolveEntity "host" { host = g; }))
-                    ];
-                  };
+                  guest.modules = [
+                    (den.lib.aspects.resolve "nixos" (den.lib.resolveEntity "host" { host = g; }))
+                    (den.lib.aspects.resolve "lima" (den.lib.resolveEntity "host" { host = g; }))
+                  ];
                 }
               ) guests
             );
@@ -39,21 +37,19 @@
       };
   };
 
-  den.batteries.toLima = {
+  den.batteries.toLimaGuest = {
     description = "Expose this host as a runnable Lima guest (flake.packages.<sys>.<name>).";
     __functor =
-      _self: settings:
+      _self:
       { host, ... }:
       {
-        name = "toLima";
+        name = "toLimaGuest";
         ${host.class} = {
           imports = [
-            ../options.nix
             ../lima.nix
+            (den.lib.aspects.resolve "lima" (den.lib.resolveEntity "host" { inherit host; }))
           ];
-          lima = settings // {
-            runner = true;
-          };
+          lima.enabledForDenHost = true;
         };
       };
   };

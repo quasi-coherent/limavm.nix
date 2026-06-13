@@ -26,6 +26,10 @@
 
             services.limavm-nix = {
               enable = true;
+              # `user` supplies the default for `limaHomeDir`
+              # (`${config.users.users.<user>.home}/.lima`). Leave null to let
+              # `limactl` pick its own per-OS default at runtime.
+              user = "alice";
               vms.work-vm = {
                 autoStart = true;
                 # Optional: boot a prebuilt qcow2 (URL or local path) instead
@@ -33,14 +37,15 @@
                 #   image = "https://example.com/nixos-base.qcow2";
                 # Overrides the inline guest's `lima.image`.
                 guest = {
-                  system = "x86_64-linux";
                   modules = [
                     {
                       lima = {
                         enable = true;
-                        cpus = 4;
-                        memory = "4GiB";
-                        vmType = "qemu";
+                        runner = {
+                          cpus = 4;
+                          memory = "4GiB";
+                          vmType = "qemu";
+                        };
                       };
                       users.users.root.password = "";
                       system.stateVersion = "26.05";

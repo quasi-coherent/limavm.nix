@@ -22,6 +22,10 @@
             system.stateVersion = 5;
             services.limavm-nix = {
               enable = true;
+              # `user` supplies the default for `limaHomeDir`
+              # (`${config.users.users.<user>.home}/.lima`). Leave null to let
+              # `limactl` pick its own per-OS default at runtime.
+              user = "alice";
               vms.work-vm = {
                 autoStart = true;
                 # Optional: boot a prebuilt qcow2 (URL or local path) instead
@@ -34,21 +38,22 @@
                 # some tooling already in the environment, e.g., nix-darwin's
                 # nix.linux-builder.
                 guest = {
-                  system = "aarch64-linux";
                   modules = [
                     {
                       lima = {
                         enable = true;
-                        cpus = 4;
-                        memory = "4GiB";
-                        vmType = "vz";
-                        rosetta.enabled = true;
-                        mounts = [
-                          {
-                            location = "/Users";
-                            writable = false;
-                          }
-                        ];
+                        runner = {
+                          cpus = 4;
+                          memory = "4GiB";
+                          vmType = "vz";
+                          rosetta.isEnabled = true;
+                          mounts = [
+                            {
+                              location = "/Users";
+                              writable = false;
+                            }
+                          ];
+                        };
                       };
                       users.users.root.password = "";
                       system.stateVersion = "26.05";

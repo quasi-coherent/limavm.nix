@@ -1,19 +1,26 @@
 {
+  den,
   inputs,
   lib,
-  den,
   ...
 }:
 {
+  imports = [ ./actions.nix ];
+
   den.hosts.aarch64-linux.lima-check-vm = { };
+  den.hosts.x86_64-linux.lima-check-vm = { };
 
   den.aspects.lima-check-vm.includes = [
-    (den.batteries.toLima {
+    den.batteries.toLimaGuest
+  ];
+
+  den.aspects.lima-check-vm.lima = {
+    lima.runner = {
       cpus = 2;
       memory = "2GiB";
       vmType = "vz";
-    })
-  ];
+    };
+  };
 
   den.aspects.lima-check-vm.nixos = {
     users.users.root.password = "";
@@ -27,6 +34,9 @@
       system,
       ...
     }:
+    let
+      guestSystem = if lib.hasPrefix "aarch" system then "aarch64-linux" else "x86_64-linux";
+    in
     {
       treefmt = {
         projectRootFile = ".git/config";
@@ -53,31 +63,34 @@
               nix-fast-build
             ];
             text = ''
-              nix-fast-build --flake ".#checks.${system}" --no-link --skip-cached "$@"
+              curr=$(nix eval --raw --impure --file builtins.currentSystem)
+              nix-fast-build --flake "$1" --systems "$curr" --no-link --skip-cached "''${@:2}"
             '';
           };
         in
         pkgs.mkShell {
           packages = [
-            fmtt
             chkk
+            fmtt
+            pkgs.just
           ];
         };
 
       checks =
-        # It's important to not write a check that needs to create the derivation
-        # path `.drvPath` for anything that references the image `limaImage`.
-        # That's because it'll try to download all of nixpkgs, which is crazy.
-        # The checks below stay on cheap paths: evalYaml (image-less) and
-        # withImage with a prebuilt string ref (so no image build is triggered).
         let
-          lima-lib = import ./lib { inherit lib; };
+          lima-lib = import ../lib { };
+          denHost = den.hosts.${guestSystem}.lima-check-vm;
+          denCfg = denHost.instantiate {
+            inherit (denHost) system;
+            modules = [
+              (den.lib.aspects.resolve "nixos" (den.lib.resolveEntity "host" { host = denHost; }))
+            ];
+          };
 
           plainCfg = inputs.nixpkgs.lib.nixosSystem {
-            system = "aarch64-linux";
+            system = guestSystem;
             modules = [
-              ./options.nix
-              ./lima.nix
+              ../lima.nix
               {
                 lima.enable = true;
                 users.users.root.password = "";
@@ -88,10 +101,9 @@
 
           # Same as plainCfg but with a prebuilt image string set.
           prebuiltCfg = inputs.nixpkgs.lib.nixosSystem {
-            system = "aarch64-linux";
+            system = guestSystem;
             modules = [
-              ./options.nix
-              ./lima.nix
+              ../lima.nix
               {
                 lima.enable = true;
                 lima.image = "https://example.invalid/base.qcow2";
@@ -101,28 +113,30 @@
             ];
           };
 
-          # Same shape but routed through the toLima battery.
-          denHost = den.hosts.aarch64-linux.lima-check-vm;
-          denCfg = denHost.instantiate {
-            inherit (denHost) system;
-            modules = [
-              (den.lib.aspects.resolve "nixos" (den.lib.resolveEntity "host" { host = denHost; }))
-            ];
-          };
-
           mkWithImage =
             cfg: image:
-            lima-lib.withImage {
-              inherit pkgs image;
-              inherit (cfg.config.lima) arch;
-            } cfg.config.system.build.limaSettings;
+            let
+              location = if builtins.isString image then image else "${image}/nixos.qcow2";
+              settings = cfg.config.system.build.limaSettings;
+            in
+            (pkgs.formats.yaml { }).generate "lima.yaml" (
+              settings
+              // {
+                images = [
+                  {
+                    inherit (cfg.config.lima.runner) arch;
+                    inherit location;
+                  }
+                ];
+              }
+            );
         in
         {
           # Image-less YAML, plain path.
-          lima-plain-eval = plainCfg.config.system.build.evalYaml;
+          lima-plain-eval = plainCfg.config.system.build.evalSettings;
 
           # Image-less YAML, den path.
-          lima-runner-eval = denCfg.config.system.build.evalYaml;
+          lima-runner-eval = denCfg.config.system.build.evalSettings;
 
           # withImage applied with a prebuilt image.
           lima-plain-withImage-prebuilt = mkWithImage prebuiltCfg prebuiltCfg.config.lima.image;
@@ -130,10 +144,12 @@
           # Same but going through the den battery.
           lima-runner-withImage-prebuilt = mkWithImage denCfg "https://example.invalid/base.qcow2";
 
-          # mkGuestPackages' start wrapper should build.
+          # limavmPackages' start wrapper should build.
           lima-start-wrapper-prebuilt =
-            (lima-lib.mkGuestPackages {
-              inherit pkgs;
+            (lima-lib.limavmPackages {
+              pkgs = import inputs.nixpkgs {
+                system = guestSystem;
+              };
               name = "check-start";
               nixosSystem = prebuiltCfg;
             }).start;
@@ -142,21 +158,20 @@
           lima-postBoot-eval =
             let
               postBootCfg = inputs.nixpkgs.lib.nixosSystem {
-                system = "aarch64-linux";
+                system = guestSystem;
                 modules = [
-                  ./options.nix
-                  ./lima.nix
+                  ../lima.nix
                   {
                     lima.enable = true;
                     lima.image = "https://example.invalid/base.qcow2";
-                    lima.postBoot = [ "echo hi" ];
+                    lima.guest.postBoot = [ "echo hi" ];
                     users.users.root.password = "";
                     system.stateVersion = "26.05";
                   }
                 ];
               };
             in
-            postBootCfg.config.system.build.evalYaml;
+            postBootCfg.config.system.build.evalSettings;
         };
     };
 }

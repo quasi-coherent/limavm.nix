@@ -1,4 +1,4 @@
-{ self, inputs, ... }:
+{ self, ... }:
 {
   systems = [
     "aarch64-darwin"
@@ -8,7 +8,7 @@
   ];
 
   flake = {
-    lib = import ./lib { inherit (inputs.nixpkgs) lib; };
+    lib = import ./lib { };
 
     darwinModules = {
       default = self.darwinModules.lima;
@@ -28,10 +28,15 @@
     nixosModules = {
       default = self.nixosModules.lima;
       lima.imports = [ ./modules/nixos.nix ];
-      guest.imports = [
-        ./options.nix
-        ./lima.nix
-      ];
+
+      guest =
+        { modulesPath, ... }:
+        {
+          imports = [
+            "${modulesPath}/profiles/qemu-guest.nix"
+            ./lima.nix
+          ];
+        };
     };
 
     templates = {

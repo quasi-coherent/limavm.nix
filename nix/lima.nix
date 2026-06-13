@@ -1,35 +1,276 @@
 {
   config,
   lib,
-  modulesPath,
   pkgs,
   ...
 }:
 let
-  LIMA_CIDATA_MNT = "/mnt/lima-cidata";
-  LIMA_CIDATA_DEV = "/dev/disk/by-label/cidata";
+  inherit (lib) mkOption types;
 
-  cfg = config.lima;
-  lima-lib = import ./lib { inherit lib; };
+  yamlFormat = pkgs.formats.yaml { };
 
-  limaSettings = lima-lib.yaml.mkLimaSettings cfg;
+  runner = {
+    cpus = mkOption {
+      type = types.ints.positive;
+      default = 2;
+      description = "Number of vCPUs.";
+    };
+    memory = mkOption {
+      type = types.str;
+      default = "2GiB";
+      description = "RAM (Lima size string, e.g. \"2GiB\").";
+    };
+    disk = mkOption {
+      type = types.str;
+      default = "20GiB";
+      description = "Disk size Lima reports to the guest.";
+    };
+    vmType = mkOption {
+      type = types.enum [
+        "qemu"
+        "vz"
+      ];
+      default = "qemu";
+      description = ''
+        Hypervisor Lima will use. `vz` requires macOS 13+ host (Apple
+        Virtualization.framework). `qemu` works everywhere Lima runs.
+      '';
+    };
+    rosetta.isEnabled = lib.mkEnableOption ''
+      Run an x86_64-linux guest on an aarch64-darwin host via Rosetta. When
+      set, host orchestration flips the guest system to x86_64-linux and Lima
+      enables Rosetta binfmt inside the VM. Requires macOS 13+ and
+      `runner.vmType = "vz"`. No effect on non-aarch64-darwin hosts.
+    '';
+    arch = mkOption {
+      type = types.enum [
+        "x86_64"
+        "aarch64"
+      ];
+      default = if pkgs.stdenv.hostPlatform.isAarch64 then "aarch64" else "x86_64";
+      defaultText = lib.literalExpression "pkgs host arch";
+      description = "Lima image arch label (matches the guest's CPU arch).";
+    };
+    mountType = mkOption {
+      type = types.enum [
+        "reverse-sshfs"
+        "9p"
+        "virtiofs"
+      ];
+      default = "reverse-sshfs";
+      description = "Lima mount backend, which applies to all shares.";
+    };
+    mounts = mkOption {
+      type = types.listOf (
+        types.submodule {
+          options = {
+            location = mkOption {
+              type = types.str;
+              description = "Host path.";
+            };
+            writable = mkOption {
+              type = types.bool;
+              default = false;
+            };
+          };
+        }
+      );
+      default = [ ];
+      description = "Host directories exposed to the guest.";
+    };
+    portForwards = mkOption {
+      type = types.listOf (
+        types.submodule (
+          { config, ... }:
+          {
+            options = {
+              guestPort = mkOption { type = types.port; };
+              hostPort = mkOption {
+                type = types.port;
+                default = config.guestPort;
+              };
+              hostIP = mkOption {
+                type = types.str;
+                default = "127.0.0.1";
+              };
+            };
+          }
+        )
+      );
+      default = [ ];
+    };
+    ssh = {
+      loadDotSSHPubKeys = mkOption {
+        type = types.bool;
+        default = true;
+        description = "Load host's ~/.ssh/*.pub into the guest's authorized_keys.";
+      };
+      localPort = mkOption {
+        type = types.port;
+        default = 0;
+        description = "Host-side SSH port; 0 lets Lima pick.";
+      };
+    };
+    provision = {
+      system = mkOption {
+        type = types.listOf types.lines;
+        default = [ ];
+        description = "Shell scripts run as root at boot.";
+      };
+      user = mkOption {
+        type = types.listOf types.lines;
+        default = [ ];
+        description = "Shell scripts run as the lima user at boot.";
+      };
+    };
+    containerd = {
+      system = mkOption {
+        type = types.bool;
+        default = false;
+        description = "Enable containerd for the root user on the VM.";
+      };
+      user = mkOption {
+        type = types.bool;
+        default = false;
+        description = "Enable containerd for the target user on the VM.";
+      };
+    };
+    extraSettings = mkOption {
+      inherit (yamlFormat) type;
+      default = { };
+      description = ''
+        Freeform att
+        Additional settings to add to the `lima.yaml` runner config.
+      '';
+    };
+  };
 
-  evalYaml = lima-lib.yaml.renderYaml pkgs "eval.yaml" limaSettings;
+  image = mkOption {
+    type = types.either types.str (
+      types.submodule {
+        options = {
+          diskSize = mkOption {
+            type = types.either types.str types.ints.positive;
+            default = "auto";
+            description = "Image size passed to make-disk-image.";
+          };
+          additionalSpace = mkOption {
+            type = types.str;
+            default = "2G";
+          };
+          additionalPaths = mkOption {
+            type = types.listOf types.package;
+            default = [ ];
+            description = "Extra store paths to include in the disk image closure.";
+          };
+        };
+      }
+    );
+    default = { };
+    description = ''
+      Image source for the guest.  Either a URL/absolute path to a prebuilt qcow2, or
+        a submodule of build args for `make-disk-image`.  The former doesn't build any
+        image on the host.  The latter does, so has additional requirements of a darwin
+        host system.
+    '';
+  };
 
-  imageIsPrebuilt = builtins.isString cfg.image;
+  guest = {
+    containerd.enable = lib.mkEnableOption "Whether to enable containerd virtualization in the guest";
+    diskAutoResize = mkOption {
+      type = types.bool;
+      default = true;
+      description = "Enable a `growpart` oneshot to resize up to `lima.runner.disk` on first boot.";
+    };
+    postBoot = mkOption {
+      type = types.listOf (types.either types.str types.package);
+      default = [ ];
+      description = ''
+        Scripts run by `lima-post-boot.service` after `lima-init.service`,
+        in list order, by a single systemd oneshot. Strings are inlined;
+        packages are executed via `lib.getExe`. The author is responsible
+        for idempotency if a script shouldn't repeat across boots.
+      '';
+    };
+  };
 in
 {
-  imports = [ "${modulesPath}/profiles/qemu-guest.nix" ];
+  options.lima = with lib; {
+    inherit runner guest image;
+
+    enable = mkOption {
+      type = types.bool;
+      default = true;
+      description = "Configure this NixOS system as a Lima guest.";
+    };
+
+    package = mkOption {
+      type = types.package;
+      default = pkgs.lima;
+      defaultText = literalExpression "pkgs.lima";
+    };
+
+    enabledForDenHost = mkOption {
+      type = types.bool;
+      default = false;
+      internal = true;
+      description = "Set by `den.batteries.toLima`; presence triggers mkLimactl.";
+    };
+  };
 
   config =
     let
+      cfg = config.lima;
+      lima-lib = import ./lib { inherit lib; };
+
+      # A string-typed `lima.image` is a path to an existing nixos.qcow2.
+      imageIsPrebuilt = builtins.isString cfg.image;
+
+      limaSettings = {
+        inherit (cfg.runner)
+          vmType
+          arch
+          cpus
+          memory
+          disk
+          mountType
+          containerd
+          ;
+        mounts = map (m: { inherit (m) location writable; }) cfg.runner.mounts;
+        portForwards = map (p: { inherit (p) guestPort hostPort hostIP; }) cfg.runner.portForwards;
+        provision =
+          map (s: {
+            mode = "system";
+            script = s;
+          }) cfg.runner.provision.system
+          ++ map (s: {
+            mode = "user";
+            script = s;
+          }) cfg.runner.provision.user;
+        rosetta = lib.optionalAttrs cfg.runner.rosetta.isEnabled {
+          enabled = true;
+          binfmt = true;
+        };
+        ssh = { inherit (cfg.runner.ssh) loadDotSSHPubKeys localPort; };
+      }
+      // cfg.runner.extraSettings;
+
+      # Resolved `options.lima` but minus the image tag: keep this prop out of
+      # the yaml to be able to build almost the whole config without having to
+      # build the image too.
+      evalSettings = yamlFormat.generate "settings.yaml" limaSettings;
+
+      LIMA_CIDATA_MNT = "/mnt/lima-cidata";
+      LIMA_CIDATA_DEV = "/dev/disk/by-label/cidata";
+
       assertions =
         let
-          rosettaHasAppleVz = (cfg.rosetta.enabled && cfg.vmType == "vz") || !cfg.rosetta.enabled;
+          rosettaHasAppleVz =
+            (cfg.runner.rosetta.isEnabled && cfg.runner.vmType == "vz") || !cfg.runner.rosetta.isEnabled;
           serialConsole =
-            if cfg.vmType == "vz" then
+            if cfg.runner.vmType == "vz" then
               "hvc0"
-            else if cfg.arch == "aarch64" then
+            else if cfg.runner.arch == "aarch64" then
               "ttyAMA0"
             else
               "ttyS0";
@@ -38,7 +279,7 @@ in
         [
           {
             assertion = rosettaHasAppleVz;
-            message = "`lima.rosetta.enabled = true` requires `lima.vmType` = \"vz\".";
+            message = "`lima.runner.rosetta.isEnabled = true` requires `lima.runner.vmType` = \"vz\".";
           }
           {
             assertion = hasSerialConsole;
@@ -54,7 +295,7 @@ in
       inherit assertions;
 
       system.build = {
-        inherit evalYaml limaSettings;
+        inherit evalSettings limaSettings;
       }
       // lib.optionalAttrs (!imageIsPrebuilt) {
         limaImage = lima-lib.mkImage {
@@ -71,10 +312,19 @@ in
         ];
       };
 
-      environment.systemPackages = with pkgs; [
-        sshfs
-        fuse3
-      ];
+      environment.systemPackages =
+        (with pkgs; [
+          sshfs
+          fuse3
+        ])
+        ++ lib.optional cfg.guest.containerd.enable pkgs.nerdctl;
+
+      # Lima's reverse-sshfs backend mounts shares via `sshfs -o allow_other`,
+      # which fuse rejects unless `user_allow_other` is uncommented in
+      # /etc/fuse.conf. The other mount backends don't go through fuse.
+      programs.fuse.userAllowOther = lib.mkDefault (cfg.runner.mountType == "reverse-sshfs");
+
+      virtualisation.containerd.enable = cfg.guest.containerd.enable;
 
       services.openssh.enable = lib.mkDefault true;
       security.sudo.wheelNeedsPassword = lib.mkDefault false;
@@ -84,9 +334,9 @@ in
         # Enable journal output to the serial console lima captures in
         # $LIMA_HOME/<vm>/serial.log.
         (
-          if cfg.vmType == "vz" then
+          if cfg.runner.vmType == "vz" then
             "console=hvc0"
-          else if cfg.arch == "aarch64" then
+          else if cfg.runner.arch == "aarch64" then
             "console=ttyAMA0,115200"
           else
             "console=ttyS0,115200"
@@ -243,7 +493,7 @@ in
       };
 
       # Generic post-boot oneshot.
-      systemd.services.lima-post-boot = lib.mkIf (cfg.postBoot != [ ]) {
+      systemd.services.lima-post-boot = lib.mkIf (cfg.guest.postBoot != [ ]) {
         description = "Lima post-boot user scripts";
         after = [ "lima-init.service" ];
         requires = [ "lima-init.service" ];
@@ -255,9 +505,39 @@ in
           StandardError = "journal+console";
         };
         script = lib.concatStringsSep "\n" (
-          map (s: if builtins.isString s then s else "${lib.getExe s}") cfg.postBoot
+          map (s: if builtins.isString s then s else "${lib.getExe s}") cfg.guest.postBoot
         );
       };
 
+      # Lima reports `runner.disk` to the hypervisor, but the qcow2 we boot from
+      # was built smaller. Without this, the root filesystem stays at the image's
+      # size and the extra space is wasted.
+      systemd.services.lima-grow-rootfs = lib.mkIf cfg.guest.diskAutoResize {
+        description = "Resize root filesystem to fill Lima-reported disk";
+        wantedBy = [ "local-fs.target" ];
+        before = [
+          "local-fs.target"
+          "lima-init.service"
+        ];
+        after = [ "systemd-udev-settle.service" ];
+        path = with pkgs; [
+          cloud-utils
+          parted
+          e2fsprogs
+          util-linux
+        ];
+        serviceConfig = {
+          Type = "oneshot";
+          RemainAfterExit = true;
+        };
+        script = ''
+          set -eu
+          root_dev=$(findmnt -no SOURCE /)
+          disk=/dev/$(lsblk -no PKNAME "$root_dev")
+          part=''${root_dev##*[!0-9]}
+          growpart "$disk" "$part" || true
+          resize2fs "$root_dev" || true
+        '';
+      };
     };
 }
