@@ -123,6 +123,7 @@
               }
               {
                 name = "Push with update";
+                "if" = "\${{ startsWith(matrix.system, 'aarch64') }}";
                 run = ''
                   git pull --rebase --autostash
                   git push

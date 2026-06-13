@@ -29,6 +29,7 @@ jobs:
     - name: Build lima-base-image
       run: nix -Lv build .#packages.${{ matrix.system }}.lima-base-image
     - name: Push with update
+      if: ${{ startsWith(matrix.system, 'aarch64') }}
       run: |-
         git pull --rebase --autostash
         git push
