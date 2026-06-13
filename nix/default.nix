@@ -4,7 +4,6 @@
     inputs.flake-parts.flakeModules.partitions
     ./flakeModule.nix
     ./modules/base-image.nix
-    # ./private/actions.nix
   ];
 
   partitionedAttrs.checks = "dev";

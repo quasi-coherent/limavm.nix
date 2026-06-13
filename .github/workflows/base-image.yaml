@@ -5,6 +5,8 @@
 # Or commit to trigger the pre-commit hook if enabled.
 jobs:
   build-base-image:
+    permissions:
+      contents: write
     runs-on: ${{ matrix.runner }}
     steps:
     - uses: actions/checkout@v6

@@ -95,6 +95,7 @@
             workflow_dispatch = { };
           };
           jobs.build-base-image = {
+            permissions.contents = "write";
             strategy.matrix.include = [
               {
                 system = "x86_64-linux";
