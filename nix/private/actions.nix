@@ -37,24 +37,6 @@
             authToken = "\${{ secrets.CACHIX_AUTH_TOKEN }}";
           };
         };
-
-        flakeUpdate = {
-          name = "Update flake inputs";
-          run = ''
-            nix flake update
-            git commit -m "Updated flake inputs" flake.lock || true
-          '';
-        };
-
-        baseSteps = [
-          checkout
-          installNix
-        ];
-
-        baseBuildSteps = [
-          checkout
-          installNixKvm
-        ];
       in
       {
         ".github/workflows/pr.yaml" = {
@@ -65,7 +47,9 @@
           };
           jobs.flake-check = {
             runs-on = "ubuntu-24.04";
-            steps = baseSteps ++ [
+            steps = [
+              checkout
+              installNix
               cachixRead
               {
                 name = "Run flake checks";
@@ -79,7 +63,9 @@
           on.push.branches = [ "master" ];
           jobs.templates-ci = {
             runs-on = "ubuntu-24.04";
-            steps = baseSteps ++ [
+            steps = [
+              checkout
+              installNix
               cachixRead
               {
                 name = "Run templates/ci flake checks";
@@ -107,14 +93,18 @@
               }
             ];
             runs-on = "\${{ matrix.runner }}";
-            steps = baseBuildSteps ++ [
+            steps = [
               cachixWrite
-              flakeUpdate
+              installNixKvm
               {
-                name = "Configure git";
+                inherit (checkout) uses;
+                name = "Nix flake update";
                 run = ''
+                  nix flake update
                   git config user.name github-actions
                   git config user.email github-actions@github.com
+                  git add .
+                  git commit -m "Update flake.lock"
                 '';
               }
               {

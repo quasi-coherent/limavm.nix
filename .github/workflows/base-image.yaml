@@ -9,27 +9,26 @@ jobs:
       contents: write
     runs-on: ${{ matrix.runner }}
     steps:
-    - uses: actions/checkout@v6
-    - uses: cachix/install-nix-action@v30
-      with:
-        extra_nix_config: system-features = nixos-test benchmark big-parallel kvm
-        nix_path: nixpkgs=channel:nixos-unstable
     - uses: cachix/cachix-action@v17
       with:
         authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
         name: limavm-nix
-    - name: Update flake inputs
+    - uses: cachix/install-nix-action@v30
+      with:
+        extra_nix_config: system-features = nixos-test benchmark big-parallel kvm
+        nix_path: nixpkgs=channel:nixos-unstable
+    - name: Nix flake update
       run: |-
         nix flake update
-        git commit -m "Updated flake inputs" flake.lock || true
-    - name: Configure git
-      run: |-
         git config user.name github-actions
         git config user.email github-actions@github.com
+        git add .
+        git commit -m "Update flake.lock"
+      uses: actions/checkout@v6
     - name: Build lima-base-image
       run: nix -Lv build .#packages.${{ matrix.system }}.lima-base-image
-    - name: Push with update
-      if: ${{ startsWith(matrix.system, 'aarch64') }}
+    - if: ${{ startsWith(matrix.system, 'aarch64') }}
+      name: Push with update
       run: |-
         git pull --rebase --autostash
         git push
