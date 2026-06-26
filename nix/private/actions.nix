@@ -94,9 +94,9 @@
             ];
             runs-on = "\${{ matrix.runner }}";
             steps = [
-              cachixWrite
-              installNixKvm
               checkout
+              installNixKvm
+              cachixWrite
               {
                 name = "Nix flake update";
                 run = ''
