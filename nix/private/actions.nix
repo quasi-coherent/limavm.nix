@@ -96,8 +96,8 @@
             steps = [
               cachixWrite
               installNixKvm
+              checkout
               {
-                inherit (checkout) uses;
                 name = "Nix flake update";
                 run = ''
                   nix flake update

@@ -17,6 +17,7 @@ jobs:
       with:
         extra_nix_config: system-features = nixos-test benchmark big-parallel kvm
         nix_path: nixpkgs=channel:nixos-unstable
+    - uses: actions/checkout@v6
     - name: Nix flake update
       run: |-
         nix flake update
@@ -24,7 +25,6 @@ jobs:
         git config user.email github-actions@github.com
         git add .
         git commit -m "Update flake.lock"
-      uses: actions/checkout@v6
     - name: Build lima-base-image
       run: nix -Lv build .#packages.${{ matrix.system }}.lima-base-image
     - if: ${{ startsWith(matrix.system, 'aarch64') }}
