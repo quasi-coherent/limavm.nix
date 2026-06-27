@@ -33,7 +33,7 @@ let
       };
 in
 {
-  flake.perSystem =
+  perSystem =
     { pkgs, ... }:
     {
       packages = lib.listToAttrs (

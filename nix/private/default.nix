@@ -5,8 +5,6 @@
   ...
 }:
 {
-  imports = [ ./actions.nix ];
-
   den.hosts.aarch64-linux.lima-check-vm = { };
   den.hosts.x86_64-linux.lima-check-vm = { };
 
