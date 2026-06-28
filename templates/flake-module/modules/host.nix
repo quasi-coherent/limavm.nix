@@ -6,8 +6,10 @@
     system.stateVersion = 5;
   };
 
-  # `laptop` gets vm1 and vm2 managed as launchd agents when declared on the
-  # den.hosts.aarch64-darwin aspect.
+  # `limaGuests` makes `laptop` run vm1 and vm2 as launchd agents.
+  #
+  # Separately, this flake has the package outputs that can boot vm1 on its own
+  # via `toLimaGuest`.
   den.aspects.laptop.includes = [
     (den.batteries.limaGuests [
       den.hosts.aarch64-linux.vm1
