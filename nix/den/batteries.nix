@@ -5,7 +5,7 @@
 }:
 {
   # For registration with den's resolution pipeline.
-  den.classes.lima.description = "Lima VM guest configuration";
+  den.classes.limaGuest.description = "Lima VM guest configuration";
 
   den.batteries.limaGuests = {
     description = "Run a list of den hosts as Lima guests on this host.";
@@ -27,7 +27,7 @@
                 lib.nameValuePair g.name {
                   guest.modules = [
                     (den.lib.aspects.resolve "nixos" (den.lib.resolveEntity "host" { host = g; }))
-                    (den.lib.aspects.resolve "lima" (den.lib.resolveEntity "host" { host = g; }))
+                    (den.lib.aspects.resolve "limaGuest" (den.lib.resolveEntity "host" { host = g; }))
                   ];
                 }
               ) guests
@@ -37,17 +37,18 @@
       };
   };
 
-  den.batteries.toLimaGuest = {
+  den.batteries.limaPackages = {
     description = "Expose this host as a runnable Lima guest (flake.packages.<sys>.<name>).";
     __functor =
       _self:
       { host, ... }:
       {
-        name = "toLimaGuest";
+        name = "limaPackages";
+
         ${host.class} = {
           imports = [
             ../lima.nix
-            (den.lib.aspects.resolve "lima" (den.lib.resolveEntity "host" { inherit host; }))
+            (den.lib.aspects.resolve "limaGuest" (den.lib.resolveEntity "host" { inherit host; }))
           ];
           lima.enabledForDenHost = true;
         };

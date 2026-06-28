@@ -114,9 +114,10 @@ den.aspects.my-darwin-host.includes = [
   ])
 ];
 
-# `toLimaGuest` is argument-less; it reads `lima`-class content from the
-# host's aspects and outputs a `packages.<sys>.<vm>` (start wrapper),
-# `<vm>-yaml`, and `<vm>-image` (when built locally).
+# The `limaPackages` battery reads lima class content from the host's aspects
+# and outputs `packages.<sys>.<vm>` (start wrapper), `<vm>-yaml`, and
+# `<vm>-image` (when built locally).  This allows you to boot into the VM on its
+# own, independent of any ambient host.
 den.aspects.vm.includes = [
   den.aspects.editor
   den.aspects.cli-tools
