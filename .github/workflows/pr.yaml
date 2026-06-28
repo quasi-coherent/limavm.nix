@@ -9,6 +9,7 @@ jobs:
     - uses: cachix/install-nix-action@v30
       with:
         nix_path: nixpkgs=channel:nixos-unstable
+        extra_nix_config: access-tokens = ${{ secrets.GH_ACCESS_TOKEN }}
     - uses: cachix/cachix-action@v17
       with:
         name: limavm-nix
