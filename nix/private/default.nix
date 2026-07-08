@@ -9,7 +9,7 @@
   den.hosts.x86_64-linux.lima-check-vm = { };
 
   den.aspects.lima-check-vm.includes = [
-    den.batteries.toLimaGuest
+    den.batteries.limaPackages
   ];
 
   den.aspects.lima-check-vm.lima = {
