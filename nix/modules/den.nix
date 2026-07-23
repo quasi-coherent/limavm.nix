@@ -3,62 +3,55 @@
   lib,
   ...
 }:
-let
-  hostsList = lib.pipe den.hosts [
-    lib.attrValues
-    (lib.concatMap lib.attrValues)
-    (lib.filter (h: h.class == "nixos"))
-  ];
-
-  trioFor =
-    pkgs: host:
-    let
-      vmBuilt = host.instantiate {
-        inherit (host) system;
-        modules = [
-          (den.lib.aspects.resolve host.class (den.lib.resolveEntity "host" { inherit host; }))
-        ];
-      };
-      # Defensive read: hosts that aren't marked by `toLima` won't have imported
-      # `lima.nix`, so `config.lima.*` may not exist. Treat absence as "not for us".
-      flagged = (vmBuilt.config.lima or { }).enabledForDenHost or false;
-    in
-    if !flagged then
-      null
-    else
-      import ../lib/limavm-packages.nix {
-        inherit pkgs;
-        name = host.name;
-        nixosSystem = vmBuilt;
-      };
-in
 {
-  perSystem =
-    { pkgs, ... }:
-    {
-      packages = lib.listToAttrs (
-        lib.concatMap (
-          host:
-          let
-            trio = trioFor pkgs host;
-          in
-          lib.optionals (trio != null) (
-            [
-              {
-                name = host.name;
-                value = trio.start;
-              }
-              {
-                name = "${host.name}-yaml";
-                value = trio.yaml;
-              }
-            ]
-            ++ lib.optional (trio.image != null) {
-              name = "${host.name}-image";
-              value = trio.image;
-            }
-          )
-        ) hostsList
-      );
-    };
+  # For registration with den's resolution pipeline.
+  limaGuest.description = "Lima VM guest configuration";
+
+  limaGuests = {
+    description = "Run a list of den hosts as Lima guests on this host.";
+    __functor =
+      _self: guests:
+      { host, ... }:
+      {
+        name = "limaGuests";
+
+        ${host.class} = {
+          imports = [
+            ../modules/${host.class}.nix
+          ];
+          services.limavm-nix = {
+            enable = true;
+            vms = lib.listToAttrs (
+              map (
+                g:
+                lib.nameValuePair g.name {
+                  guest.modules = [
+                    (den.lib.aspects.resolve "nixos" (den.lib.resolveEntity "host" { host = g; }))
+                    (den.lib.aspects.resolve "limaGuest" (den.lib.resolveEntity "host" { host = g; }))
+                  ];
+                }
+              ) guests
+            );
+          };
+        };
+      };
+  };
+
+  limaPackages = {
+    description = "Expose this host as a runnable Lima guest (flake.packages.<sys>.<name>).";
+    __functor =
+      _self:
+      { host, ... }:
+      {
+        name = "limaPackages";
+
+        ${host.class} = {
+          imports = [
+            ../lima.nix
+            (den.lib.aspects.resolve "limaGuest" (den.lib.resolveEntity "host" { inherit host; }))
+          ];
+          lima.enabledForDenHost = true;
+        };
+      };
+  };
 }

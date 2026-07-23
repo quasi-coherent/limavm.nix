@@ -11,13 +11,12 @@
   partitionedAttrs.formatter = "dev";
   partitions.dev.extraInputsFlake = ../private;
   partitions.dev.module =
-    { inputs, ... }:
+    { inputs, self, ... }:
     {
       imports = [
         inputs.den.flakeModules.default
         inputs.treefmt-nix.flakeModule
-        ./den
-        ./modules/den.nix
+        self.flakeModules.den
         ./private
       ];
     };

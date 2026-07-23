@@ -18,11 +18,17 @@
     };
 
     flakeModules = {
-      den.imports = [
-        ./den
-        ./modules/den.nix
-      ];
-      home-manager.imports = [ ./modules/home.nix ];
+      den =
+        { den, lib, ... }:
+        let
+          denMod = import ./modules/den.nix { inherit den lib; };
+        in
+        {
+          classes.limaGuest = denMod.limaGuest;
+          batteries = { inherit (denMod) limaGuests limaPackages; };
+
+          home-manager.imports = [ ./modules/home.nix ];
+        };
     };
 
     nixosModules = {
