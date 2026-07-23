@@ -3,6 +3,12 @@
 A flake for building and running [Lima](https://lima-vm.io/)-managed VMs on
 macOS or Linux hosts.
 
+For an example that is not so simple that it doesn't tell you at all how to
+use this flake, see [this](./templates/zim) template.  Here we create Lima as
+a guest systemd process that runs [Zim](https://zim-wiki.org/downloads.html),
+a desktop app for Linux that can be installed and ran on MacOS too, but not
+well. Other wiring to get the Zim GUI out of the VM is necessary.
+
 ## Usage
 
 First, add the following to your flake.nix:
@@ -96,6 +102,11 @@ flake.darwinConfigurations.macbook-pro = inputs.darwin.lib.darwinSystem {
   ];
 };
 ```
+
+If using the `lima-base-image` from this flake, it is recommended that you
+choose a git tag to pin the flake to.  The base image is cached for each tag,
+for as many tags going back that a cachix cache can hold without having to pay
+money for more space.
 
 See the example [template](./templates/prebuilt-image).
 
